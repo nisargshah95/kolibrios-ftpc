@@ -15,7 +15,7 @@ cmd_bye:
 
 ; Close the control connection
         mcall   close, [controlsocket]
-        jmp     main
+        jmp     arg_handler.get_server_addr
 
 
 cmd_pwd:
@@ -46,7 +46,7 @@ cmd_cwd:
 cmd_dele:
 
         mov     dword[buf_cmd], "DELE"
-        mov     byte[buf_cmd], " "
+        mov     byte[buf_cmd+4], " "
 
         mov     ecx, 256
         xor     al, al
@@ -111,7 +111,8 @@ cmd_retr:
         mov     dword[edi - 2], 0x0a0d
         mcall   send, [controlsocket], buf_cmd, , 0
 
-        invoke  con_write_asciiz, buf_cmd     ; print command
+        stdcall arg_handler.print, buf_cmd     ; print command
+
         jmp     wait_for_servercommand
 
 cmd_rdir:        
@@ -179,9 +180,7 @@ cmd_lcwd:
   .print:
         mcall   30, 2, buf_cmd, 256           ; and read it again
 
-        invoke  con_write_asciiz, str_lcwd
-        invoke  con_write_asciiz, buf_cmd
-        invoke  con_write_asciiz, str_newline
+        pcall   arg_handler.print, str_lcwd, buf_cmd, str_newline
 
         jmp     wait_for_usercommand
 
@@ -189,7 +188,7 @@ cmd_lcwd:
 cmd_cdup:
 
         mov     dword[buf_cmd], "CDUP"
-        mov     word[buf_cmd+4], 0x0d0a
+        mov     word[buf_cmd+4], 0x0a0d
         mcall   send, [controlsocket], buf_cmd, 6, 0
 
         jmp     wait_for_servercommand

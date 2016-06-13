@@ -6,6 +6,7 @@
 ;;  ftpc.asm - FTP client for KolibriOS                            ;;
 ;;                                                                 ;;
 ;;  Written by hidnplayr@kolibrios.org                             ;;
+;;  Modified by nisargshah323@gmail.com (2016)                     ;;
 ;;                                                                 ;;
 ;;          GNU GENERAL PUBLIC LICENSE                             ;;
 ;;             Version 2, June 1991                                ;;
@@ -40,17 +41,28 @@ use32
         dd      buf_cmd         ; parameters
         dd      path            ; path
 
-include '../../macros.inc'
+include 'macros.inc'
+macro pcall proc,[arg]  ; to call a proc with multiple args
+ {  pushd arg
+    call proc }
 purge mov,add,sub
-include '../../proc32.inc'
-include '../../dll.inc'
-include '../../network.inc'
+include 'proc32.inc'
+include 'dll.inc'
+include 'network.inc'
 
 include 'usercommands.inc'
 include 'servercommands.inc'
 include 'parser.inc'
 
-start:
+;;================================================================================================;;
+start: ;//////////////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Program entry point - initialize heap, load libraries and settings                             ;;
+;;------------------------------------------------------------------------------------------------;;
+;>                                                                                                ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
 ; initialize heap for using dynamic blocks
         mcall   68,11
         test    eax,eax
@@ -62,9 +74,6 @@ start:
         stdcall dll.Load, @IMPORT
         test    eax, eax
         jnz     exit
-; initialize console
-        invoke  con_start, 1
-        invoke  con_init, 80, 25, 80, 250, str_title
 ; find path to main settings file (ftpc.ini)
         mov     edi, path               ; Calculate the length of zero-terminated string
         xor     al, al
@@ -99,16 +108,40 @@ start:
         invoke  ini.get_str, path, str_general, str_dir, buf_buffer1, BUFFERSIZE, 0
         mcall   30, 1, buf_buffer1                      ; set working directory
 
-; Check for parameters, if there are some, resolve the address right away
-; TODO: parse ftp://user:password@server.com:port/folder/subfolder type urls.
-        cmp     byte [buf_cmd], 0
-        jne     resolve
 
-main:
+        call    console.init
+; Check for parameters, if there are some, resolve the address right away
+        cmp     byte [buf_cmd], 0
+        jne     resolve_args
+
+        jmp     arg_handler.get_server_addr
+
+
+;;================================================================================================;;
+console: ;////////////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Console-specific functions - initialization, clear screen,                                     ;;
+;? .get_cmd - Takes user command as input from the console                                        ;;
+;? .server_addr - Gets server address from user in the form address:port                          ;;
+;? .username/.password - Takes username/password as input from the user                           ;;
+;;------------------------------------------------------------------------------------------------;;
+;>                                                                                                ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
+  .init:
+; initialize console
+        invoke  con_start, 1
+        invoke  con_init, 80, 25, 80, 250, str_title
+        ret
+  .cls:
 ; Clear screen
         invoke  con_cls
 ; Welcome user
         invoke  con_write_asciiz, str_welcome
+  .server_addr:
+; ask for server addr
+        invoke  con_write_asciiz, str_srv_addr
 ; write prompt (in green color)
         invoke  con_set_flags, 0x0a
         invoke  con_write_asciiz, str_prompt
@@ -122,21 +155,118 @@ main:
 ; reset color back to grey and print newline
         invoke  con_set_flags, 0x07
         invoke  con_write_asciiz, str_newline
-
-no_resolve:
-        mov     [sockaddr1.port], 21 shl 8
-
-; delete terminating '\n'
+; check whether port specified with hostname after ':'
         mov     esi, buf_cmd
   @@:
         lodsb
         cmp     al, ':'
-        je      .do_port
+        je      server_connect.do_port
         cmp     al, 0x20
         ja      @r
-        mov     byte [esi-1], 0
-        jmp     .done
+        jmp     server_connect.default_port
 
+  .get_cmd:
+; write prompt
+        invoke  con_write_asciiz, str_prompt
+; read string
+        invoke  con_gets, buf_cmd, 256
+
+; print a newline and reset the color back to grey
+        invoke  con_write_asciiz, str_newline
+        invoke  con_set_flags, 0x07
+
+        jmp     wait_for_usercommand.parse_cmd
+; read username
+  .get_username:
+        invoke  con_write_asciiz, str_user
+        invoke  con_gets, esi, 256
+        jmp     wait_for_usercommand.send
+; read password
+  .get_pass:
+        invoke  con_write_asciiz, str_pass
+        invoke  con_set_flags, 0x00             ; black text on black background for password
+        invoke  con_gets, esi, 256
+        jmp     wait_for_usercommand.send
+
+
+;;================================================================================================;;
+arg_handler: ;////////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Passes user input from console/GUI to FTP core and the other way around                        ;;
+;;------------------------------------------------------------------------------------------------;;
+;> esp+4 = pointer to the argument passed to the function                                         ;;
+;> use_params = command line arguments to be used - 1 (yes) or 0 (no)                             ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
+; Resolve server address and port
+  .get_server_addr:
+        jmp     console.cls
+
+  .get_cmd:
+        jmp     console.get_cmd
+
+  .print:
+        invoke  con_write_asciiz, [esp+4]
+        ret     4
+
+; set flags (change text color)
+  .set_flags:
+        invoke  con_set_flags, [esp+4]
+        ret     4
+
+  .get_username:
+; request username
+        cmp     [use_params], 1
+        je      .copy_user
+        mov     dword[buf_cmd], "USER"
+        mov     byte[buf_cmd+4], " "
+        mov     esi, buf_cmd+5
+        jmp     console.get_username
+
+  .copy_user: 
+; copy user name to buf_cmd (for command line args)
+        mov     edi, buf_cmd
+        mov     esi, param_user
+  @@:
+        lodsb
+        stosb
+        cmp     byte [esi-1], 0
+        jne     @b
+        jmp     wait_for_usercommand.send
+
+  .get_pass:
+; request password
+        cmp     [use_params], 1
+        je      .copy_password
+        mov     dword[buf_cmd], "PASS"
+        mov     byte[buf_cmd+4], " "
+        mov     esi, buf_cmd+5
+        jmp     console.get_pass
+
+  .copy_password:
+; copy password to buf_cmd (for command line args)
+        mov     edi, buf_cmd
+        mov     esi, param_password
+  @@:
+        lodsb
+        stosb
+        cmp     byte [esi-1], 0
+        jne     @b
+        jmp     wait_for_usercommand.send
+
+
+;;================================================================================================;;
+server_connect: ;/////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Establishes a connection to the FTP server (common block for all interfaces)                   ;;
+;? .do_port - Port is specified by the user and needs to be converted from ASCII                  ;;
+;;------------------------------------------------------------------------------------------------;;
+;> esi = pointer to the tail of server address                                                    ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
+; resolve port if passed as parameter
   .do_port:
         xor     eax, eax
         xor     ebx, ebx
@@ -161,11 +291,23 @@ no_resolve:
   .port_done:
         xchg    bl, bh
         mov     [sockaddr1.port], bx
+        jmp     .done
+
+  .default_port:
+        mov     [sockaddr1.port], 21 shl 8
+        jmp     .done
 
   .done:
+; delete terminating '\n'
+        mov     esi, buf_cmd
+  @@:
+        lodsb
+        cmp     al, 0x20
+        ja      @r
+        mov     byte [esi-1], 0
+
 ; Say to the user that we're resolving
-        invoke  con_write_asciiz, str_resolve
-        invoke  con_write_asciiz, buf_cmd
+        pcall   arg_handler.print, str_resolve, buf_cmd
 ; resolve name
         push    esp     ; reserve stack place
         invoke  getaddrinfo, buf_cmd, 0, 0, esp
@@ -177,14 +319,13 @@ no_resolve:
         jmp     error
     @@:
 ; write results
-        invoke  con_write_asciiz, str8          ; ' (',0
+        stdcall arg_handler.print, str8         ; ' (',0
         mov     eax, [esi+addrinfo.ai_addr]     ; convert IP address to decimal notation
         mov     eax, [eax+sockaddr_in.sin_addr] ;
         mov     [sockaddr1.ip], eax             ;
         invoke  inet_ntoa, eax                  ;
-        invoke  con_write_asciiz, eax           ; print ip
+        pcall   arg_handler.print, eax, str9    ; <ip>,')',10,0
         invoke  freeaddrinfo, esi               ; free allocated memory
-        invoke  con_write_asciiz, str9          ; ')',10,0
 ; open the socket
         mcall   socket, AF_INET4, SOCK_STREAM, 0
         cmp     eax, -1
@@ -193,7 +334,7 @@ no_resolve:
         jmp     error
     @@: mov     [controlsocket], eax
 ; connect to the server
-        invoke  con_write_asciiz, str_connect
+        stdcall arg_handler.print, str_connect
         mcall   connect, [controlsocket], sockaddr1, 18
         cmp     eax, -1
         jne     @f
@@ -201,12 +342,21 @@ no_resolve:
         jmp     error
     @@: mov     [status], STATUS_CONNECTING
 ; Tell the user we're waiting for the server now.
-        invoke  con_write_asciiz, str_waiting
+        stdcall arg_handler.print, str_waiting
 
 ; Reset 'offset' variable, it's used by the data receiver
         mov     [offset], 0
 
-wait_for_servercommand:
+;;================================================================================================;;
+wait_for_servercommand: ;/////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Checks if any data received from the server is present in buffer.                              ;;
+;? If not, receives and displays it                                                               ;;
+;;------------------------------------------------------------------------------------------------;;
+;>                                                                                                ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
 ; Any commands still in our buffer?
         cmp     [offset], 0
         je      .receive                        ; nope, receive some more
@@ -268,41 +418,43 @@ wait_for_servercommand:
         xor     al, al
         stosb
 
-        invoke  con_set_flags, 0x03             ; change color
-        invoke  con_write_asciiz, buf_cmd             ; print servercommand
-        invoke  con_write_asciiz, str_newline
-        invoke  con_set_flags, 0x07             ; reset color
-
+        stdcall arg_handler.set_flags, 0x03     ; change color
+        pcall   arg_handler.print, buf_cmd, str_newline     ; ; print servercommand
+        stdcall arg_handler.set_flags, 0x07     ; reset color
         jmp     server_parser                   ; parse command
 
 
 
-wait_for_usercommand:
+;;================================================================================================;;
+wait_for_usercommand: ;///////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Reads first four characters of FTP command entered by the user and compares it                 ;;
+;? with valid FTP commands. Jumps to appropriate handling routine in usercommands.inc             ;;
+;;------------------------------------------------------------------------------------------------;;
+;> status = socket connection status                                                              ;;
+;> buf_cmd = command entered by the user                                                          ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
 
 ; Are there any files in the transfer queue?
 
         cmp     [queued], 0
         ja      transfer_queued                 ; Yes, transfer those first.
-        
+
 ; change color to green for user input
-        invoke  con_set_flags, 0x0a
+        stdcall arg_handler.set_flags, 0x0a
 
 ; If we are not yet connected, request username/password
         cmp     [status], STATUS_CONNECTED
-        je      .connected
+        je      arg_handler.get_username
 
         cmp     [status], STATUS_NEEDPASSWORD
-        je      .needpass
+        je      arg_handler.get_pass
 
-; write prompt
-        invoke  con_write_asciiz, str_prompt
-; read string
-        invoke  con_gets, buf_cmd, 256
+        jmp     arg_handler.get_cmd
 
-; print a newline and reset the color back to grey
-        invoke  con_write_asciiz, str_newline
-        invoke  con_set_flags, 0x07
-
+  .parse_cmd:
         cmp     dword[buf_cmd], "cwd "
         je      cmd_cwd
 
@@ -351,60 +503,11 @@ wait_for_usercommand:
 
   @@:
 ; Uh oh.. unknown command, tell the user and wait for new input
-        invoke  con_write_asciiz, str_unknown
+        stdcall arg_handler.print, str_unknown
         jmp     wait_for_usercommand
 
 
-  .connected:
-; request username
-        cmp     [use_params], 1
-        je      .copy_user
-
-        invoke  con_write_asciiz, str_user
-        mov     dword[buf_cmd], "USER"
-        mov     byte[buf_cmd+4], " "
-        jmp     .send
-
-  .copy_user: 
-; copy user name to buf_cmd
-        mov     edi, buf_cmd
-        mov     esi, param_user
-  @@:
-        lodsb
-        stosb
-        cmp     byte [esi-1], 0
-        jne     @b
-        jmp     .send
-
-  .needpass:
-; request password
-        cmp     [use_params], 1
-        je      .copy_password
-
-        invoke  con_write_asciiz, str_pass
-        mov     dword[buf_cmd], "PASS"
-        mov     byte[buf_cmd+4], " "
-        invoke  con_set_flags, 0x00             ; black text on black background for password
-        jmp     .send
-
-  .copy_password:
-; copy password to buf_cmd
-        mov     edi, buf_cmd
-        mov     esi, param_password
-  @@:
-        lodsb
-        stosb
-        cmp     byte [esi-1], 0
-        jne     @b
-
   .send:
-; read string
-        cmp     [use_params], 1
-        je      @f
-        mov     esi, buf_cmd+5
-        invoke  con_gets, esi, 256
-
-  @@:
 ; find end of string
         mov     edi, buf_cmd+5
         mov     ecx, 256
@@ -415,10 +518,10 @@ wait_for_usercommand:
 ; and send it to the server
         mcall   send, [controlsocket], buf_cmd, , 0
 
-        invoke  con_write_asciiz, str_newline
-        invoke  con_set_flags, 0x07             ; reset color
+        stdcall arg_handler.print, str_newline
+        stdcall arg_handler.set_flags, 0x07     ; reset color
+        
         jmp     wait_for_servercommand
-
 
 
 ; files for rdir operation are queued
@@ -551,23 +654,31 @@ dword_ascii:
         pop     ecx ebx edx
         ret
 
-error:
+;;================================================================================================;;
+error: ;//////////////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Generic error routine. Prints the error string passed to it.                                   ;;
+;;------------------------------------------------------------------------------------------------;;
+;> eax = pointer to the error string                                                              ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
         push    eax
-        invoke  con_set_flags, 0x0c                     ; print errors in red
+        stdcall arg_handler.set_flags, 0x0c              ; print errors in red
         pop     eax
-        invoke  con_write_asciiz, eax
+        stdcall arg_handler.print, eax
         jmp     wait_for_keypress
 
 error_heap:
-        invoke  con_set_flags, 0x0c                     ; print errors in red
-        invoke  con_write_asciiz, str_err_heap
+        stdcall arg_handler.set_flags, 0x0c              ; print errors in red
+        stdcall arg_handler.print, str_err_heap
         
 wait_for_keypress:
-        invoke  con_set_flags, 0x07                     ; reset color to grey
-        invoke  con_write_asciiz, str_push
+        stdcall arg_handler.set_flags, 0x07             ; reset color to grey
+        stdcall arg_handler.print, str_push
         invoke  con_getch2
         mcall   close, [controlsocket]
-        jmp     main
+        jmp     console.cls
 
 done:
         invoke  con_exit, 1
@@ -582,8 +693,8 @@ exit2:
 ; data
 str_title       db 'FTP client',0
 str_welcome     db 'FTP client for KolibriOS v0.12',10
-                db 10
-                db 'Please enter ftp server address.',10,0
+                db 10,0
+str_srv_addr    db 'Please enter ftp server address.',10,0
 
 str_ftp         db 'ftp://',0
 
@@ -641,6 +752,7 @@ str_general     db 'general', 0
 
 queued          dd 0
 mode            db 0    ; passive = 0, active = 1
+
 
 ; FTP strings
 

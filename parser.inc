@@ -1,6 +1,14 @@
-resolve:
+;;================================================================================================;;
+resolve_args: ;///////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? parses command line arguments and attempts to connect automatically                            ;;
+;;------------------------------------------------------------------------------------------------;;
+;> buf_cmd = pointer to command line arguments                                                    ;;
+;;------------------------------------------------------------------------------------------------;;
+;< use_params = 1 (resolution successful) / 0 (unsuccessful)                                      ;;
+;;================================================================================================;;
 
-        ; parse command line parameters of type
+        ; parse command line arguments of type
         ; ftp://user:password@server.com:port/folder/subfolder type urls
 
         ; check ftp://
@@ -13,7 +21,7 @@ resolve:
         mov     bl, byte [edi+edx]
         inc     edx
         cmp     al, bl
-        jne     main
+        jne     console.cls
         cmp     byte [edi+edx], '/'
         jne     @b
         inc     ecx
@@ -122,5 +130,4 @@ resolve:
         jne     .copy
         mov     byte [esi], 0
 
-        jmp     no_resolve.done
-
+        jmp     server_connect.done

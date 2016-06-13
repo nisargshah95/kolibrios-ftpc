@@ -104,7 +104,7 @@ pasv_ok:
         call    ascii_dec
         mov     byte[sockaddr2.port+1], bl
 
-        invoke  con_write_asciiz, str_open
+        stdcall arg_handler.print, str_open
         mcall   connect, [datasocket], sockaddr2, 18
         cmp     eax, -1
         jne     @f
@@ -113,13 +113,13 @@ pasv_ok:
     @@: jmp     wait_for_servercommand
 
   .fail:
-        invoke  con_write_asciiz, str_unknown
+        stdcall arg_handler.print, str_unknown
         jmp     wait_for_servercommand
 
 
 data_loop:
 
-        invoke  con_write_asciiz, str_dot
+        stdcall arg_handler.print, str_dot
 
         cmp     [operation], OPERATION_STOR
         je      .stor
@@ -137,7 +137,7 @@ data_loop:
         je      .rdir
         
 ; not retreiving, just print to console
-        invoke  con_write_asciiz, buf_buffer2
+        stdcall arg_handler.print, buf_buffer2
         jmp     data_loop
 
 ; retreiving, save to file
@@ -167,7 +167,7 @@ data_loop:
         mcall   send, [datasocket], buf_buffer2, , 0
 
   .done:
-        invoke  con_write_asciiz, str_close
+        stdcall arg_handler.print, str_close
         mcall   close, [datasocket]
         mov     [operation], OPERATION_NONE
         jmp     wait_for_servercommand
@@ -209,7 +209,7 @@ data_loop:
 close_datacon:
         cmp     [operation], OPERATION_NONE
         je      wait_for_usercommand
-        invoke  con_write_asciiz, str_close
+        stdcall arg_handler.print, str_close
         mcall   close, [datasocket]
         jmp     wait_for_usercommand
 
