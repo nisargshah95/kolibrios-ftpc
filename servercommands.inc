@@ -146,6 +146,8 @@ data_loop:
         mov     [filestruct.size], eax
         push    eax
         mcall   70, filestruct
+        cmp     eax, 0
+        jne     error_fs
         pop     eax
         add     [filestruct.offset], eax
         jmp     data_loop
@@ -156,7 +158,7 @@ data_loop:
         cmp     eax, 6          ; end of file
         je      .last_call
         test    eax, eax        ; error
-;        jne     .fileerror
+        jne     error_fs
         add     [filestruct.offset], ebx
         mov     esi, ebx
         mcall   send, [datasocket], buf_buffer2, , 0

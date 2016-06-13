@@ -669,6 +669,58 @@ error: ;////////////////////////////////////////////////////////////////////////
         stdcall arg_handler.print, eax
         jmp     wait_for_keypress
 
+; Error handling block for filesystem errors
+error_fs:
+        
+        cmp     eax, 12
+        jne     @f
+        mov     ebx, str_fs_err_12
+  @@:
+        cmp     eax, 11
+        jne     @f
+        mov     ebx, str_fs_err_11
+  @@:
+        cmp     eax, 10
+        jne     @f
+        mov     ebx, str_fs_err_10
+  @@:
+        cmp     eax, 9
+        jne     @f
+        mov     ebx, str_fs_err_9
+  @@:
+        cmp     eax, 8
+        jne     @f
+        mov     ebx, str_fs_err_8
+  @@:
+        cmp     eax, 7
+        jne     @f
+        mov     ebx, str_fs_err_7
+  @@:
+        cmp     eax, 6
+        jne     @f
+        mov     ebx, str_fs_err_6
+  @@:
+        cmp     eax, 5
+        jne     @f
+        mov     ebx, str_fs_err_5
+  @@:
+        cmp     eax, 3
+        jne     @f
+        mov     ebx, str_fs_err_3
+  @@:
+        cmp     eax, 2
+        jne     @f
+        mov     ebx, str_fs_err_2
+  @@:
+        mov     edi, fs_error_code
+        call    dword_ascii    ; convert error code in eax to ascii
+        stdcall arg_handler.set_flags, 0x0c              ; print errors in red
+        pcall   arg_handler.print, str_err_fs, fs_error_code, ebx
+        mov     word[fs_error_code], '  '   ; clear error code for next time
+        stdcall arg_handler.set_flags, 0x0a
+
+        jmp     wait_for_usercommand
+
 error_heap:
         stdcall arg_handler.set_flags, 0x0c              ; print errors in red
         stdcall arg_handler.print, str_err_heap
@@ -712,6 +764,19 @@ str_err_timeout db 10,'Timeout - no response from server.',10,0
 str_err_connect db 10,'[75,4 connect]: Cannot connect to the server.',10,0
 str_err_host    db 10,'Invalid hostname.',10,0
 str_err_params  db 10,'Invalid parameters',10,0
+str_err_folder  db 'Folder does not exist',10,0
+str_err_fs      db 'File system error: code ',0
+fs_error_code   db '  ',0    ; file system error code
+str_fs_err_2    db ' [Function is not supported for the given file system]',10,0
+str_fs_err_3    db ' [Unknown file system]',10,0
+str_fs_err_5    db ' [File/Folder not found]',10,0
+str_fs_err_6    db ' [End of file, EOF]',10,0
+str_fs_err_7    db ' [Pointer lies outside of application memory]',10,0
+str_fs_err_8    db ' [Disk is full]',10,0
+str_fs_err_9    db ' [File system error]',10,0
+str_fs_err_10   db ' [Access denied]',10,0
+str_fs_err_11   db ' [Device error]',10,0
+str_fs_err_12   db ' [File system requires more memory]',10,0
 str8            db ' (',0
 str9            db ')',10,0
 str_push        db 'Push any key to continue.',0
@@ -770,6 +835,15 @@ sockaddr2:
 .port   dw ?
 .ip     dd ?
         rb 10
+
+folder_info:
+        dd  5
+        times 3 dd 0
+        dd  folder_buf
+        db  0
+        dd  buf_cmd+5
+folder_buf  rb 40
+
 
 ; import
 align 4

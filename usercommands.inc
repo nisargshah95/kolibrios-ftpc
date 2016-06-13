@@ -90,8 +90,8 @@ cmd_retr:
         mov     [filestruct.ptr], 0
 
         mcall   70, filestruct
-        cmp     eax, -1
-;        je      fileerror
+        cmp     eax, 0
+        jne     error_fs
 
 ; Prepare to write to the file
 
@@ -170,12 +170,21 @@ cmd_lcwd:
   .loop:
         lodsb
         cmp     al, 10
-        je      .done
+        je      .check
         test    al, al
-        je      .done
+        je      .check
         loop    .loop
-  .done:
+  .check:
         mov     byte[esi-1], 0
+
+        ; check whether entered path is valid (folder exists)
+        mcall   70, folder_info
+        cmp     eax, 0
+        je      @f
+        cmp     eax, 2
+        jne     error_fs
+
+  @@:
         mcall   30, 1, buf_cmd+5              ; set working directory
   .print:
         mcall   30, 2, buf_cmd, 256           ; and read it again
