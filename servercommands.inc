@@ -6,7 +6,8 @@ server_parser:
 ; thus they are simply ignored in this simple command parser.
 
         cmp     dword[buf_cmd], "150 "
-        je      data_loop
+        ;je      data_loop
+        je      init_download_count
 
         cmp     dword[buf_cmd], "220 "
         je      welcome
@@ -117,15 +118,25 @@ pasv_ok:
         jmp     wait_for_servercommand
 
 
+init_download_count:
+        mov     edx, 0
+
 data_loop:
 
-        stdcall arg_handler.print, str_dot
+        mov     eax, edx
+        push    edx ; store byte count
+        mov     edi, str_bytes_done
+        call    dword_ascii
+        mov     byte[edi],0
+        pcall   arg_handler.print, str_downloaded, str_bytes_done, str_bytes
 
         cmp     [operation], OPERATION_STOR
         je      .stor
 
 ; we are receiving data
         mcall   recv, [datasocket], buf_buffer2, BUFFERSIZE, 0
+        pop     edx ; get byte count
+        add     edx, eax
         test    ebx, ebx
         jnz     .done
         mov     byte[buf_buffer2 + eax], 0

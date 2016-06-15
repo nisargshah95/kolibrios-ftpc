@@ -421,6 +421,7 @@ wait_for_servercommand: ;///////////////////////////////////////////////////////
         stdcall arg_handler.set_flags, 0x03     ; change color
         pcall   arg_handler.print, buf_cmd, str_newline     ; ; print servercommand
         stdcall arg_handler.set_flags, 0x07     ; reset color
+
         jmp     server_parser                   ; parse command
 
 
@@ -764,8 +765,7 @@ str_err_timeout db 10,'Timeout - no response from server.',10,0
 str_err_connect db 10,'[75,4 connect]: Cannot connect to the server.',10,0
 str_err_host    db 10,'Invalid hostname.',10,0
 str_err_params  db 10,'Invalid parameters',10,0
-str_err_folder  db 'Folder does not exist',10,0
-str_err_fs      db 'File system error: code ',0
+str_err_fs      db 10,'File system error: code ',0
 fs_error_code   db '  ',0    ; file system error code
 str_fs_err_2    db ' [Function is not supported for the given file system]',10,0
 str_fs_err_3    db ' [Unknown file system]',10,0
@@ -786,6 +786,9 @@ str_user        db "username: ",0
 str_pass        db "password: ",0
 str_unknown     db "Unknown command or insufficient parameters - type help for more information.",10,0
 str_lcwd        db "Local working directory is now: ",0
+str_bytes_done  db '          ',0
+str_downloaded  db 'Downloaded ',0
+str_bytes       db ' bytes',13,0
 
 str_open        db "opening data socket",10,0
 str_close       db 10,"closing data socket",10,0
@@ -804,7 +807,7 @@ str_help        db "available commands:",10
                 db "retr <file>     - retreive file from the server",10
                 db "rmd <directory> - remove directory from the server",10
                 db "stor <file>     - store file on the server",10
-                    db "rdir            - retreive all files from current server dir",10
+                db "rdir            - retreive all files from current server dir",10
                 db 10,0
 
 str_ini         db '.ini', 0

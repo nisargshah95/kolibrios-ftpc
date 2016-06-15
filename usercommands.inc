@@ -77,8 +77,6 @@ cmd_retr:
         
 ; Create/open the file
 
-; Create/open the file
-
         mov     esi, buf_cmd+5
         mov     ecx, 256-5
         call    set_filename
@@ -112,7 +110,6 @@ cmd_retr:
         mcall   send, [controlsocket], buf_cmd, , 0
 
         stdcall arg_handler.print, buf_cmd     ; print command
-
         jmp     wait_for_servercommand
 
 cmd_rdir:        
