@@ -76,6 +76,7 @@ cmd_retr:
         call    open_dataconnection
         
 ; Create/open the file
+; TODO: check beforehand if the disk has enough free space available to store the file
 
         mov     esi, buf_cmd+5
         mov     ecx, 256-5

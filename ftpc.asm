@@ -50,6 +50,12 @@ include 'proc32.inc'
 include 'dll.inc'
 include 'network.inc'
 
+include 'box_lib.mac'
+include 'load_lib.mac'
+    @use_library         ;use load lib macros
+
+include 'console.inc'
+include 'connect_gui.inc'
 include 'usercommands.inc'
 include 'servercommands.inc'
 include 'parser.inc'
@@ -108,85 +114,16 @@ start: ;////////////////////////////////////////////////////////////////////////
         invoke  ini.get_str, path, str_general, str_dir, buf_buffer1, BUFFERSIZE, 0
         mcall   30, 1, buf_buffer1                      ; set working directory
 
-
+; command line arguments should be of the form
+; "ftpc ftp://username:password@server:port/path"
+; or "ftpc -cli". All other args will be ignored and GUI will be started
         call    console.init
-; Check for parameters, if there are some, resolve the address right away
-        cmp     byte [buf_cmd], 0
-        jne     resolve_args
-
-        jmp     arg_handler.get_server_addr
-
-
-;;================================================================================================;;
-console: ;////////////////////////////////////////////////////////////////////////////////////////;;
-;;------------------------------------------------------------------------------------------------;;
-;? Console-specific functions - initialization, clear screen,                                     ;;
-;? .get_cmd - Takes user command as input from the console                                        ;;
-;? .server_addr - Gets server address from user in the form address:port                          ;;
-;? .username/.password - Takes username/password as input from the user                           ;;
-;;------------------------------------------------------------------------------------------------;;
-;>                                                                                                ;;
-;;------------------------------------------------------------------------------------------------;;
-;< none                                                                                           ;;
-;;================================================================================================;;
-  .init:
-; initialize console
-        invoke  con_start, 1
-        invoke  con_init, 80, 25, 80, 250, str_title
-        ret
-  .cls:
-; Clear screen
-        invoke  con_cls
-; Welcome user
-        invoke  con_write_asciiz, str_welcome
-  .server_addr:
-; ask for server addr
-        invoke  con_write_asciiz, str_srv_addr
-; write prompt (in green color)
-        invoke  con_set_flags, 0x0a
-        invoke  con_write_asciiz, str_prompt
-; read string
-        invoke  con_gets, buf_cmd, 256
-; check for exit
-        test    eax, eax
-        jz      done
-        cmp     byte [buf_cmd], 10
-        jz      done
-; reset color back to grey and print newline
-        invoke  con_set_flags, 0x07
-        invoke  con_write_asciiz, str_newline
-; check whether port specified with hostname after ':'
-        mov     esi, buf_cmd
-  @@:
-        lodsb
-        cmp     al, ':'
-        je      server_connect.do_port
-        cmp     al, 0x20
-        ja      @r
-        jmp     server_connect.default_port
-
-  .get_cmd:
-; write prompt
-        invoke  con_write_asciiz, str_prompt
-; read string
-        invoke  con_gets, buf_cmd, 256
-
-; print a newline and reset the color back to grey
-        invoke  con_write_asciiz, str_newline
-        invoke  con_set_flags, 0x07
-
-        jmp     wait_for_usercommand.parse_cmd
-; read username
-  .get_username:
-        invoke  con_write_asciiz, str_user
-        invoke  con_gets, esi, 256
-        jmp     wait_for_usercommand.send
-; read password
-  .get_pass:
-        invoke  con_write_asciiz, str_pass
-        invoke  con_set_flags, 0x00             ; black text on black background for password
-        invoke  con_gets, esi, 256
-        jmp     wait_for_usercommand.send
+        call    console.cls
+        cmp     dword[buf_cmd], 'ftp:'
+        je      resolve_args
+        cmp     dword[buf_cmd], '-cli'
+        je      arg_handler.get_server_addr
+        jmp     init_connect_gui
 
 
 ;;================================================================================================;;
@@ -201,7 +138,10 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 ;;================================================================================================;;
 ; Resolve server address and port
   .get_server_addr:
-        jmp     console.cls
+        cmp     [use_params], 1
+        je      connect_gui_active
+        call    console.cls
+        jmp     console.server_addr
 
   .get_cmd:
         jmp     console.get_cmd
@@ -217,43 +157,75 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 
   .get_username:
 ; request username
-        cmp     [use_params], 1
-        je      .copy_user
         mov     dword[buf_cmd], "USER"
         mov     byte[buf_cmd+4], " "
-        mov     esi, buf_cmd+5
+        cmp     [use_params], 1
+        je      .copy_user
         jmp     console.get_username
 
   .copy_user: 
 ; copy user name to buf_cmd (for command line args)
-        mov     edi, buf_cmd
+        mov     edi, buf_cmd+5
         mov     esi, param_user
   @@:
         lodsb
         stosb
         cmp     byte [esi-1], 0
         jne     @b
-        jmp     wait_for_usercommand.send
+        mov     word[edi-1], 0x0a0d
+
+        lea     esi, [edi+1-buf_cmd]
+        jmp     .send
 
   .get_pass:
 ; request password
-        cmp     [use_params], 1
-        je      .copy_password
         mov     dword[buf_cmd], "PASS"
         mov     byte[buf_cmd+4], " "
+        cmp     [use_params], 1
+        je      .copy_password
         mov     esi, buf_cmd+5
         jmp     console.get_pass
 
   .copy_password:
 ; copy password to buf_cmd (for command line args)
-        mov     edi, buf_cmd
+        mov     edi, buf_cmd+5
         mov     esi, param_password
   @@:
         lodsb
         stosb
         cmp     byte [esi-1], 0
         jne     @b
-        jmp     wait_for_usercommand.send
+        mov     word[edi-1], 0x0a0d
+
+        lea     esi, [edi+1-buf_cmd]
+        jmp     .send
+
+  .get_path:
+; copy path from param_path to buf_cmd
+        mov     dword[buf_cmd], "CWD "
+        mov     edi, buf_cmd+4
+        mov     esi, param_path
+  @@:
+        lodsb
+        stosb
+        cmp     byte [esi-1], 0
+        jne     @b
+        mov     word[edi-1], 0x0a0d
+
+        lea     esi, [edi+1-buf_cmd]
+        jmp     .send
+
+  .send:
+  ; and send it to the server
+        ;int3
+        mcall   send, [controlsocket], buf_cmd, , 0
+        mov     [param_user], 0     ; at wait_for_usercommand, if [param_user]
+                                    ; is 0, that means show GUI again, dont
+                                    ; take value from param_user
+        stdcall arg_handler.print, str_newline
+        stdcall arg_handler.set_flags, 0x07     ; reset color
+        
+        jmp     wait_for_servercommand
 
 
 ;;================================================================================================;;
@@ -262,11 +234,11 @@ server_connect: ;///////////////////////////////////////////////////////////////
 ;? Establishes a connection to the FTP server (common block for all interfaces)                   ;;
 ;? .do_port - Port is specified by the user and needs to be converted from ASCII                  ;;
 ;;------------------------------------------------------------------------------------------------;;
-;> esi = pointer to the tail of server address                                                    ;;
+;> esi = pointer to the first character of port no.                                               ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;< none                                                                                           ;;
 ;;================================================================================================;;
-; resolve port if passed as parameter
+; resolve port if specified
   .do_port:
         xor     eax, eax
         xor     ebx, ebx
@@ -307,6 +279,7 @@ server_connect: ;///////////////////////////////////////////////////////////////
         mov     byte [esi-1], 0
 
 ; Say to the user that we're resolving
+        stdcall arg_handler.set_flags, 0x07     ; reset color
         pcall   arg_handler.print, str_resolve, buf_cmd
 ; resolve name
         push    esp     ; reserve stack place
@@ -447,9 +420,13 @@ wait_for_usercommand: ;/////////////////////////////////////////////////////////
         stdcall arg_handler.set_flags, 0x0a
 
 ; If we are not yet connected, request username/password
-        cmp     [status], STATUS_CONNECTED
-        je      arg_handler.get_username
 
+        cmp     [status], STATUS_CONNECTED
+        jne     @f
+        cmp     [param_user], 0
+        jne     arg_handler.get_username
+        jmp     connect_gui_active
+  @@:
         cmp     [status], STATUS_NEEDPASSWORD
         je      arg_handler.get_pass
 
@@ -506,23 +483,6 @@ wait_for_usercommand: ;/////////////////////////////////////////////////////////
 ; Uh oh.. unknown command, tell the user and wait for new input
         stdcall arg_handler.print, str_unknown
         jmp     wait_for_usercommand
-
-
-  .send:
-; find end of string
-        mov     edi, buf_cmd+5
-        mov     ecx, 256
-        xor     al, al
-        repne   scasb
-        lea     esi, [edi-buf_cmd]
-        mov     word[edi-2], 0x0a0d
-; and send it to the server
-        mcall   send, [controlsocket], buf_cmd, , 0
-
-        stdcall arg_handler.print, str_newline
-        stdcall arg_handler.set_flags, 0x07     ; reset color
-        
-        jmp     wait_for_servercommand
 
 
 ; files for rdir operation are queued
@@ -731,7 +691,8 @@ wait_for_keypress:
         stdcall arg_handler.print, str_push
         invoke  con_getch2
         mcall   close, [controlsocket]
-        jmp     console.cls
+        call    console.cls
+        jmp     console.server_addr
 
 done:
         invoke  con_exit, 1
@@ -852,25 +813,12 @@ folder_buf  rb 40
 align 4
 @IMPORT:
 
-library network, 'network.obj', console, 'console.obj', libini, 'libini.obj'
+library network, 'network.obj', libini, 'libini.obj'
 
 import  network,        \
         getaddrinfo,    'getaddrinfo',  \
         freeaddrinfo,   'freeaddrinfo', \
         inet_ntoa,      'inet_ntoa'
-
-import  console,        \
-        con_start,      'START',        \
-        con_init,       'con_init',     \
-        con_write_asciiz,'con_write_asciiz',     \
-        con_exit,       'con_exit',     \
-        con_gets,       'con_gets',\
-        con_cls,        'con_cls',\
-        con_getch2,     'con_getch2',\
-        con_set_cursor_pos, 'con_set_cursor_pos',\
-        con_write_string, 'con_write_string',\
-        con_get_flags,  'con_get_flags', \
-        con_set_flags,  'con_set_flags'
 
 import  libini,         \
         ini.get_str,    'ini_get_str',\
@@ -919,5 +867,6 @@ param_user      rb 1024
 param_password  rb 1024
 param_server_addr rb 1024
 param_path      rb 1024
+param_port      rb 6
 
 mem:

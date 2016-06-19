@@ -34,7 +34,6 @@ server_parser:
         je      welcome
 
         cmp     dword[buf_cmd], "530 "         ; password incorrect
-        mov     [use_params], 0
         je      welcome
 
         cmp     dword[buf_cmd], "550 "
@@ -63,17 +62,12 @@ login_ok:
         cmp     [use_params], 0
         je      wait_for_usercommand
 
-        cmp     [param_path+4], 0
+        cmp     [param_path+4], 0 ; no path specified
         je      wait_for_usercommand
+        
         ; copy path to buf_cmd and execute CWD
-        mov     edi, buf_cmd
-        mov     esi, param_path
-  @@:
-        lodsb
-        stosb
-        cmp     byte[esi-1], 0
-        jne     @b
-        jmp     cmd_cwd
+        jmp     arg_handler.get_path
+
 
 pasv_ok:
 

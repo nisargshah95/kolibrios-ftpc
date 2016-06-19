@@ -167,4 +167,5 @@ edit_path edit_box 300,75,85,0xffffff,0x6a9480,0,0xAABBCC,0,99,param_path,mouse_
 hed db     'FTP Client',0
 
 mouse_dd        rd 1
+thread_info     rb 1024
 library_path    rb 4096
