@@ -125,7 +125,7 @@ connect_gui_deactive:
     mcall   18, 21,  ; get thread slot
     mov     ecx, eax
     mcall   18, 1,  ; make window deactive
-    jmp     resolve_args.finish ; common flow of control
+    jmp     arg_handler.connect
     
 
 system_path     db '/sys/lib/'

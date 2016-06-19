@@ -175,7 +175,7 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
         mov     word[edi-1], 0x0a0d
 
         lea     esi, [edi+1-buf_cmd]
-        jmp     .send
+        jmp     server_connect.send
 
   .get_pass:
 ; request password
@@ -198,7 +198,7 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
         mov     word[edi-1], 0x0a0d
 
         lea     esi, [edi+1-buf_cmd]
-        jmp     .send
+        jmp     server_connect.send
 
   .get_path:
 ; copy path from param_path to buf_cmd
@@ -213,19 +213,26 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
         mov     word[edi-1], 0x0a0d
 
         lea     esi, [edi+1-buf_cmd]
-        jmp     .send
+        jmp     server_connect.send
 
-  .send:
-  ; and send it to the server
-        ;int3
-        mcall   send, [controlsocket], buf_cmd, , 0
-        mov     [param_user], 0     ; at wait_for_usercommand, if [param_user]
-                                    ; is 0, that means show GUI again, dont
-                                    ; take value from param_user
-        stdcall arg_handler.print, str_newline
-        stdcall arg_handler.set_flags, 0x07     ; reset color
-        
-        jmp     wait_for_servercommand
+
+  .connect:
+        ; parameters resolved successfully
+        mov     [use_params], 1
+
+        ; copy server address to buf_cmd
+        mov     esi, param_server_addr
+        mov     edi, buf_cmd
+  @@:
+        lodsb
+        stosb
+        cmp     byte [esi], 0
+        jne     @b
+        mov     byte [edi], 0
+
+        cmp     [param_port], 0
+        je      server_connect.default_port
+        jmp     server_connect.do_port
 
 
 ;;================================================================================================;;
@@ -238,6 +245,18 @@ server_connect: ;///////////////////////////////////////////////////////////////
 ;;------------------------------------------------------------------------------------------------;;
 ;< none                                                                                           ;;
 ;;================================================================================================;;
+
+  .send:
+; send username/password/path to the server
+        mcall   send, [controlsocket], buf_cmd, , 0
+        mov     [param_user], 0     ; at wait_for_usercommand, if [param_user]
+                                    ; is 0, that means show GUI again, dont
+                                    ; take value from param_user
+        stdcall arg_handler.print, str_newline
+        stdcall arg_handler.set_flags, 0x07     ; reset color
+        
+        jmp     wait_for_servercommand
+
 ; resolve port if specified
   .do_port:
         xor     eax, eax
@@ -319,6 +338,7 @@ server_connect: ;///////////////////////////////////////////////////////////////
 
 ; Reset 'offset' variable, it's used by the data receiver
         mov     [offset], 0
+
 
 ;;================================================================================================;;
 wait_for_servercommand: ;/////////////////////////////////////////////////////////////////////////;;
@@ -691,8 +711,7 @@ wait_for_keypress:
         stdcall arg_handler.print, str_push
         invoke  con_getch2
         mcall   close, [controlsocket]
-        call    console.cls
-        jmp     console.server_addr
+        jmp     arg_handler.get_server_addr
 
 done:
         invoke  con_exit, 1

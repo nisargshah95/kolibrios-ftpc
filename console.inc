@@ -88,7 +88,7 @@ console: ;//////////////////////////////////////////////////////////////////////
         mov     word[edi-2], 0x0a0d
 
         lea     esi, [edi-buf_cmd]
-        jmp     arg_handler.send
+        jmp     server_connect.send
 
 
 ; import

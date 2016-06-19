@@ -94,21 +94,4 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
         jne     .path
         mov     byte [edi], 0
 
-  .finish:
-        ; parameters resolved successfully
-        mov     [use_params], 1
-
-        ; copy server address to buf_cmd
-        mov     esi, param_server_addr
-        mov     edi, buf_cmd
-        ;int3
-  @@:
-        lodsb
-        stosb
-        cmp     byte [esi], 0
-        jne     @b
-        mov     byte [edi], 0
-
-        cmp     [param_port], 0
-        je      server_connect.default_port
-        jmp     server_connect.do_port
+        jmp     arg_handler.connect
