@@ -111,8 +111,8 @@ draw_strings:   ; draw strings for boxes and buttons
 
 connect_gui_active:
     xor     ecx, ecx
-    mcall   9, thread_info, -1
-    mov     ecx, dword[thread_info+30] ; get pid
+    mcall   9, buf_cmd, -1 ; store thread information
+    mov     ecx, dword[buf_cmd+30] ; get pid
     mcall   18, 21,  ; get thread slot
     mov     ecx, eax
     mcall   18, 3,  ; make window active
@@ -120,8 +120,8 @@ connect_gui_active:
 
 connect_gui_deactive:
     xor     ecx, ecx
-    mcall   9, thread_info, -1
-    mov     ecx, dword[thread_info+30] ; get pid
+    mcall   9, buf_cmd, -1
+    mov     ecx, dword[buf_cmd+30] ; get pid
     mcall   18, 21,  ; get thread slot
     mov     ecx, eax
     mcall   18, 1,  ; make window deactive
@@ -167,5 +167,5 @@ edit_path edit_box 300,75,85,0xffffff,0x6a9480,0,0xAABBCC,0,99,param_path,mouse_
 hed db     'FTP Client',0
 
 mouse_dd        rd 1
-thread_info     rb 1024
+;thread_info     rb 1024
 library_path    rb 4096

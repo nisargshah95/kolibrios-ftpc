@@ -157,6 +157,8 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 
   .get_username:
 ; request username
+        cmp     [param_user], 0
+        je      connect_gui_active
         mov     dword[buf_cmd], "USER"
         mov     byte[buf_cmd+4], " "
         cmp     [use_params], 1
@@ -232,6 +234,7 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 
         cmp     [param_port], 0
         je      server_connect.default_port
+        mov     esi, param_port
         jmp     server_connect.do_port
 
 
@@ -241,7 +244,7 @@ server_connect: ;///////////////////////////////////////////////////////////////
 ;? Establishes a connection to the FTP server (common block for all interfaces)                   ;;
 ;? .do_port - Port is specified by the user and needs to be converted from ASCII                  ;;
 ;;------------------------------------------------------------------------------------------------;;
-;> esi = pointer to the first character of port no.                                               ;;
+;> esi = pointer to port no.                                                                      ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;< none                                                                                           ;;
 ;;================================================================================================;;
@@ -261,7 +264,6 @@ server_connect: ;///////////////////////////////////////////////////////////////
   .do_port:
         xor     eax, eax
         xor     ebx, ebx
-        mov     byte [esi-1], 0
   .portloop:
         lodsb
         cmp     al, 0x20
@@ -442,11 +444,8 @@ wait_for_usercommand: ;/////////////////////////////////////////////////////////
 ; If we are not yet connected, request username/password
 
         cmp     [status], STATUS_CONNECTED
-        jne     @f
-        cmp     [param_user], 0
-        jne     arg_handler.get_username
-        jmp     connect_gui_active
-  @@:
+        je      arg_handler.get_username
+
         cmp     [status], STATUS_NEEDPASSWORD
         je      arg_handler.get_pass
 
@@ -649,6 +648,7 @@ error: ;////////////////////////////////////////////////////////////////////////
         pop     eax
         stdcall arg_handler.print, eax
         jmp     wait_for_keypress
+
 
 ; Error handling block for filesystem errors
 error_fs:

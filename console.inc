@@ -42,12 +42,15 @@ console: ;//////////////////////////////////////////////////////////////////////
         invoke  con_write_asciiz, str_newline
 ; check whether port specified with hostname after ':'
         mov     esi, buf_cmd
-  @@:
+  .check_port:
         lodsb
         cmp     al, ':'
-        je      server_connect.do_port
+        jne     @f
+        mov     byte [esi-1], 0
+        jmp     server_connect.do_port
+  @@:
         cmp     al, 0x20
-        ja      @r
+        ja      .check_port
         jmp     server_connect.default_port
 
   .get_cmd:
