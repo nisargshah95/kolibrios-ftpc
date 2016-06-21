@@ -10,26 +10,25 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
 ;< use_params = 1 (resolution successful) / 0 (unsuccessful)                                      ;;
 ;;================================================================================================;;
 
-        ; check ftp://
-        xor     edx, edx
+        cmp     dword[buf_cmd], 'ftp:'
+        jne     @f
         mov     esi, buf_cmd
-        mov     edi, str_ftp
-        xor     ecx, ecx
+        jmp     .start
   @@:
-        mov     al, byte [esi+edx]
-        mov     bl, byte [edi+edx]
-        inc     edx
-        cmp     al, bl
-        jne     console.cls
-        cmp     byte [edi+edx], '/'
-        jne     @b
-        inc     ecx
-        cmp     ecx, 2
-        jne     @b
+        mov     esi, buf_cmd+5
 
+        ; check ftp://
+        cmp     dword[esi], 'ftp:'
+        jne     @f
+        cmp     word[esi+4], '//'
+        jne     @f
+        jmp     .start
+  @@:
+        mov     eax, str_err_params
+        jmp     error
+
+  .start:
         ; parse user
-        inc     edx
-        add     esi, edx
         lea     edi, [param_user]
   .user:
         lodsb
@@ -94,4 +93,6 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
         jne     .path
         mov     byte [edi], 0
 
+        ; parameters resolved successfully
+        mov     [use_params], 1
         jmp     arg_handler.connect

@@ -119,11 +119,26 @@ start: ;////////////////////////////////////////////////////////////////////////
 ; or "ftpc -cli". All other args will be ignored and GUI will be started
         call    console.init
         call    console.cls
-        cmp     dword[buf_cmd], 'ftp:'
-        je      resolve_args
-        cmp     dword[buf_cmd], '-cli'
-        je      arg_handler.get_server_addr
+        cmp     dword[buf_cmd], 0
+        jne     @f
+        mov     [interface], 1
         jmp     init_connect_gui
+  @@:   cmp     dword[buf_cmd], '-cli'
+        jne     .gui
+        cmp     dword[buf_cmd+5], 'ftp:'
+        jne     @f
+        mov     [interface], 0
+        jmp     resolve_args
+  @@:
+        jmp     arg_handler.get_server_addr      
+  .gui:
+        cmp     dword[buf_cmd], 'ftp:'
+        jne     @f
+        mov     [interface], 1
+        jmp     resolve_args
+  @@:
+        invoke  con_write_asciiz, str_args_err
+        jmp     wait_for_keypress
 
 
 ;;================================================================================================;;
@@ -138,7 +153,13 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 ;;================================================================================================;;
 ; Resolve server address and port
   .get_server_addr:
-        cmp     [use_params], 1
+        cmp     [use_params], 1 ; gui not yet initialised at this point
+        jne     @f
+        cmp     [interface], 1
+        jne     @f
+        mov     [use_params], 0 ; no longer use params
+        jmp     init_connect_gui
+  @@:   cmp     [interface], 1
         je      connect_gui_active
         call    console.cls
         jmp     console.server_addr
@@ -157,11 +178,11 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 
   .get_username:
 ; request username
-        cmp     [param_user], 0
-        je      connect_gui_active
         mov     dword[buf_cmd], "USER"
         mov     byte[buf_cmd+4], " "
         cmp     [use_params], 1
+        je      .copy_user
+        cmp     [interface], 1
         je      .copy_user
         jmp     console.get_username
 
@@ -184,6 +205,8 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
         mov     dword[buf_cmd], "PASS"
         mov     byte[buf_cmd+4], " "
         cmp     [use_params], 1
+        je      .copy_password
+        cmp     [interface], 1
         je      .copy_password
         mov     esi, buf_cmd+5
         jmp     console.get_pass
@@ -219,8 +242,6 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 
 
   .connect:
-        ; parameters resolved successfully
-        mov     [use_params], 1
 
         ; copy server address to buf_cmd
         mov     esi, param_server_addr
@@ -252,9 +273,6 @@ server_connect: ;///////////////////////////////////////////////////////////////
   .send:
 ; send username/password/path to the server
         mcall   send, [controlsocket], buf_cmd, , 0
-        mov     [param_user], 0     ; at wait_for_usercommand, if [param_user]
-                                    ; is 0, that means show GUI again, dont
-                                    ; take value from param_user
         stdcall arg_handler.print, str_newline
         stdcall arg_handler.set_flags, 0x07     ; reset color
         
@@ -729,8 +747,6 @@ str_welcome     db 'FTP client for KolibriOS v0.12',10
                 db 10,0
 str_srv_addr    db 'Please enter ftp server address.',10,0
 
-str_ftp         db 'ftp://',0
-
 str_prompt      db '> ',0
 str_resolve     db 'Resolving ',0
 str_newline     db 10,0
@@ -769,6 +785,7 @@ str_lcwd        db "Local working directory is now: ",0
 str_bytes_done  db '          ',0
 str_downloaded  db 'Downloaded ',0
 str_bytes       db ' bytes',13,0
+str_args_err    db 'Invalid arguments',10,0
 
 str_open        db "opening data socket",10,0
 str_close       db 10,"closing data socket",10,0
@@ -847,6 +864,8 @@ import  libini,         \
 i_end:
 
 ; uninitialised data
+
+interface       db ?    ; 0 for CLI, 1 for GUI
 
 status          db ?
 

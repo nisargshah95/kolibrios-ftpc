@@ -34,7 +34,7 @@ server_parser:
         je      welcome
 
         cmp     dword[buf_cmd], "530 "         ; password incorrect
-        je      welcome
+        je      login_fail
 
         cmp     dword[buf_cmd], "550 "
         je      close_datacon
@@ -59,7 +59,7 @@ pass:
 login_ok:
 
         mov     [status], STATUS_LOGGED_IN
-        cmp     [use_params], 0
+        cmp     [interface], 0
         je      wait_for_usercommand
 
         cmp     [param_path+4], 0 ; no path specified
@@ -68,6 +68,12 @@ login_ok:
         ; copy path to buf_cmd and execute CWD
         jmp     arg_handler.get_path
 
+
+login_fail:
+        mov     [status], STATUS_CONNECTED
+        cmp     [interface], 1
+        je      connect_gui_active
+        jmp     wait_for_usercommand
 
 pasv_ok:
 

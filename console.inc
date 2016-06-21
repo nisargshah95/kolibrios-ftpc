@@ -86,10 +86,8 @@ console: ;//////////////////////////////////////////////////////////////////////
         mov     ecx, 256
         xor     al, al
         repne   scasb
-        cmp     [use_params], 1
-        je      @f
-        mov     word[edi-2], 0x0a0d
 
+        mov     word[edi-2], 0x0a0d
         lea     esi, [edi-buf_cmd]
         jmp     server_connect.send
 
