@@ -115,8 +115,9 @@ start: ;////////////////////////////////////////////////////////////////////////
         mcall   30, 1, buf_buffer1                      ; set working directory
 
 ; command line arguments should be of the form
-; "ftpc ftp://username:password@server:port/path"
-; or "ftpc -cli". All other args will be ignored and GUI will be started
+; "ftpc ftp://username:password@server:port/path" or
+; "ftpc -cli ftp://username:password@server:port/path"
+; or "ftpc -cli". All other args will be ignored
         call    console.init
         call    console.cls
         cmp     dword[buf_cmd], 0
