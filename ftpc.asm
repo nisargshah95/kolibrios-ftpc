@@ -129,14 +129,14 @@ start: ;////////////////////////////////////////////////////////////////////////
         cmp     dword[buf_cmd+5], 'ftp:'
         jne     @f
         mov     [interface], 0
-        jmp     resolve_args
+        jmp     parse_args
   @@:
         jmp     arg_handler.get_server_addr      
   .gui:
         cmp     dword[buf_cmd], 'ftp:'
         jne     @f
         mov     [interface], 1
-        jmp     resolve_args
+        jmp     parse_args
   @@:
         invoke  con_write_asciiz, str_args_err
         jmp     wait_for_keypress
@@ -219,7 +219,7 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
   @@:
         lodsb
         stosb
-        cmp     byte [esi-1], 0
+        cmp     byte[esi-1], 0
         jne     @b
         mov     word[edi-1], 0x0a0d
 
@@ -234,7 +234,7 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
   @@:
         lodsb
         stosb
-        cmp     byte [esi-1], 0
+        cmp     byte[esi-1], 0
         jne     @b
         mov     word[edi-1], 0x0a0d
 

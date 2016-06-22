@@ -1,5 +1,5 @@
 ;;================================================================================================;;
-resolve_args: ;///////////////////////////////////////////////////////////////////////////////////;;
+parse_args: ;/////////////////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
 ;? parses command line arguments of type                                                          ;;
 ;? ftp://user:password@server:port/folder/subfolder type urls and attempts to connect             ;;
@@ -17,26 +17,20 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
   @@:
         mov     esi, buf_cmd+5
 
+  .start:
         ; check ftp://
         cmp     dword[esi], 'ftp:'
-        jne     @f
+        jne     .error
         cmp     word[esi+4], '//'
-        jne     @f
-        jmp     .start
-  @@:
-        mov     eax, str_err_params
-        jmp     error
+        jne     .error
 
-  .start:
         ; parse user
         lea     edi, [param_user]
   .user:
         lodsb
         cmp     al, 0
-        jne     @f
-        mov     eax, str_err_params
-        jmp     error
-    @@: stosb
+        je      .error
+        stosb
         cmp     byte [esi], ':'
         jne     .user
         mov     byte [edi], 0
@@ -47,10 +41,8 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
   .pass:   
         lodsb
         cmp     al, 0
-        jne     @f
-        mov     eax, str_err_params
-        jmp     error
-    @@: stosb
+        je      .error
+        stosb
         cmp     byte [esi], '@'
         jne     .pass
         mov     byte [edi], 0
@@ -61,10 +53,8 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
   .addr:
         lodsb
         cmp     al, 0
-        jne     @f
-        mov     eax, str_err_params
-        jmp     error
-    @@: stosb
+        je      .error
+        stosb
         cmp     byte [esi], ':'
         jne     .addr
         mov     byte [edi], 0
@@ -75,10 +65,8 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
   .port:
         lodsb
         cmp     al, 0
-        jne     @f
-        mov     eax, str_err_params
-        jmp     error
-    @@: stosb
+        je      .error
+        stosb
         cmp     byte [esi], '/'
         jne     .port
         mov     byte [edi], 0        
@@ -93,6 +81,10 @@ resolve_args: ;/////////////////////////////////////////////////////////////////
         jne     .path
         mov     byte [edi], 0
 
-        ; parameters resolved successfully
+        ; parameters parsed successfully
         mov     [use_params], 1
         jmp     arg_handler.connect
+
+  .error:
+        mov     eax, str_err_params
+        jmp     error

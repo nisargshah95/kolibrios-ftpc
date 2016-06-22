@@ -59,10 +59,13 @@ pass:
 login_ok:
 
         mov     [status], STATUS_LOGGED_IN
-        cmp     [interface], 0
-        je      wait_for_usercommand
-
-        cmp     [param_path+4], 0 ; no path specified
+        cmp     [use_params], 1     ; path from cli args
+        je      @f
+        cmp     [interface], 1      ; path from GUI
+        je      @f
+        jmp     wait_for_usercommand
+  @@:
+        cmp     [param_path], 0 ; no path specified
         je      wait_for_usercommand
         
         ; copy path to buf_cmd and execute CWD
