@@ -10,7 +10,7 @@ server_parser:
         je      init_download_count
 
         cmp     dword[buf_cmd], "220 "
-        je      welcome
+        je      connect_ok
 
 ;        cmp     dword[buf_cmd], "226 "
 ;        je      transfer_ok
@@ -34,7 +34,7 @@ server_parser:
         je      welcome
 
         cmp     dword[buf_cmd], "530 "         ; password incorrect
-        je      login_fail
+        je      welcome
 
         cmp     dword[buf_cmd], "550 "
         je      close_datacon
@@ -50,6 +50,10 @@ welcome:
         jmp     wait_for_usercommand
 
 
+connect_ok:
+        mov     [status], STATUS_CONNECTED
+        jmp     arg_handler.copy_user
+
 pass:
 
         mov     [status], STATUS_NEEDPASSWORD
@@ -59,24 +63,13 @@ pass:
 login_ok:
 
         mov     [status], STATUS_LOGGED_IN
-        cmp     [use_params], 1     ; path from cli args
-        je      @f
-        cmp     [interface], 1      ; path from GUI
-        je      @f
-        jmp     wait_for_usercommand
-  @@:
-        cmp     [param_path], 0 ; no path specified
-        je      wait_for_usercommand
+
+        cmp     [param_path], 0x20 ; no path specified
+        jbe     wait_for_usercommand
         
         ; copy path to buf_cmd and execute CWD
         jmp     arg_handler.get_path
 
-
-login_fail:
-        mov     [status], STATUS_CONNECTED
-        cmp     [interface], 1
-        je      connect_gui_active
-        jmp     wait_for_usercommand
 
 pasv_ok:
 

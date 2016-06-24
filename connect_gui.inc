@@ -47,6 +47,7 @@ button:
     jmp     connect_gui_deactive
 
 connect_gui_exit:
+
     mcall   -1
 
 key:
@@ -110,7 +111,6 @@ draw_strings:   ; draw strings for boxes and buttons
     ret
 
 connect_gui_active:
-    xor     ecx, ecx
     mcall   9, buf_cmd, -1 ; store thread information
     mov     ecx, dword[buf_cmd+30] ; get pid
     mcall   18, 21,  ; get thread slot
@@ -119,7 +119,6 @@ connect_gui_active:
     jmp     red_connect_win
 
 connect_gui_deactive:
-    xor     ecx, ecx
     mcall   9, buf_cmd, -1
     mov     ecx, dword[buf_cmd+30] ; get pid
     mcall   18, 21,  ; get thread slot

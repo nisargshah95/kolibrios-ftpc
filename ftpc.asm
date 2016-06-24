@@ -45,7 +45,13 @@ include 'macros.inc'
 macro pcall proc,[arg]  ; to call a proc with multiple args
  {  pushd arg
     call proc }
+macro ijmp reg, addr, method
+{   mov     reg, [addr]
+    add     reg, [method]
+    jmp     dword[reg] }
+
 purge mov,add,sub
+
 include 'proc32.inc'
 include 'dll.inc'
 include 'network.inc'
@@ -55,7 +61,7 @@ include 'load_lib.mac'
     @use_library         ;use load lib macros
 
 include 'console.inc'
-include 'connect_gui.inc'
+include 'gui.inc'
 include 'usercommands.inc'
 include 'servercommands.inc'
 include 'parser.inc'
@@ -114,33 +120,34 @@ start: ;////////////////////////////////////////////////////////////////////////
         invoke  ini.get_str, path, str_general, str_dir, buf_buffer1, BUFFERSIZE, 0
         mcall   30, 1, buf_buffer1                      ; set working directory
 
-; command line arguments should be of the form
-; "ftpc ftp://username:password@server:port/path" or
-; "ftpc -cli ftp://username:password@server:port/path"
-; or "ftpc -cli". All other args will be ignored
-        call    console.init
-        call    console.cls
-        cmp     dword[buf_cmd], 0
+; Usage: ftpc [-cli] [ftp://username:password@server:port/path]
+        cmp     byte[buf_cmd], 0
         jne     @f
-        mov     [interface], 1
-        jmp     init_connect_gui
+        mov     [interface_addr], gui
+        jmp     .args_ok
   @@:   cmp     dword[buf_cmd], '-cli'
-        jne     .gui
-        cmp     dword[buf_cmd+5], 'ftp:'
-        jne     @f
-        mov     [interface], 0
-        jmp     parse_args
-  @@:
-        jmp     arg_handler.get_server_addr      
-  .gui:
-        cmp     dword[buf_cmd], 'ftp:'
-        jne     @f
-        mov     [interface], 1
-        jmp     parse_args
-  @@:
-        invoke  con_write_asciiz, str_args_err
-        jmp     wait_for_keypress
+        jne     .error
+        mov     [interface_addr], console
+        jmp     .args_ok
 
+  .args_ok:
+        mov     eax, [interface_addr]
+        add     eax, [interface.init]
+        call    dword[eax]
+        ; check for ftp://username:pass@server:port/path urls
+        cmp     dword[buf_cmd], 'ftp:'
+        je      parse_args
+        cmp     dword[buf_cmd+5], 'ftp:'
+        je      parse_args
+        mov     [initial_login], 1
+        ijmp    eax, interface_addr, interface.server_addr
+
+  .error:
+        call    console.init
+        invoke  con_write_asciiz, str_args_err
+        invoke  con_getch2
+        call    console.exit
+        jmp     exit
 
 ;;================================================================================================;;
 arg_handler: ;////////////////////////////////////////////////////////////////////////////////////;;
@@ -148,25 +155,9 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 ;? Passes user input from console/GUI to FTP core and the other way around                        ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;> esp+4 = pointer to the argument passed to the function                                         ;;
-;> use_params = command line arguments to be used - 1 (yes) or 0 (no)                             ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;< none                                                                                           ;;
 ;;================================================================================================;;
-; Resolve server address and port
-  .get_server_addr:
-        cmp     [use_params], 1 ; gui not yet initialised at this point
-        jne     @f
-        cmp     [interface], 1
-        jne     @f
-        mov     [use_params], 0 ; no longer use params
-        jmp     init_connect_gui
-  @@:   cmp     [interface], 1
-        je      connect_gui_active
-        call    console.cls
-        jmp     console.server_addr
-
-  .get_cmd:
-        jmp     console.get_cmd
 
   .print:
         invoke  con_write_asciiz, [esp+4]
@@ -179,15 +170,11 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 
   .get_username:
 ; request username
+        ijmp    eax, interface_addr, interface.get_username
+
+  .copy_user:
         mov     dword[buf_cmd], "USER"
         mov     byte[buf_cmd+4], " "
-        cmp     [use_params], 1
-        je      .copy_user
-        cmp     [interface], 1
-        je      .copy_user
-        jmp     console.get_username
-
-  .copy_user: 
 ; copy user name to buf_cmd (for command line args)
         mov     edi, buf_cmd+5
         mov     esi, param_user
@@ -202,17 +189,8 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
         jmp     server_connect.send
 
   .get_pass:
-; request password
         mov     dword[buf_cmd], "PASS"
         mov     byte[buf_cmd+4], " "
-        cmp     [use_params], 1
-        je      .copy_password
-        cmp     [interface], 1
-        je      .copy_password
-        mov     esi, buf_cmd+5
-        jmp     console.get_pass
-
-  .copy_password:
 ; copy password to buf_cmd (for command line args)
         mov     edi, buf_cmd+5
         mov     esi, param_password
@@ -234,28 +212,26 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
   @@:
         lodsb
         stosb
-        cmp     byte[esi-1], 0
-        jne     @b
+        cmp     al, 0x20
+        ja      @b
         mov     word[edi-1], 0x0a0d
 
         lea     esi, [edi+1-buf_cmd]
         jmp     server_connect.send
 
-
   .connect:
-
         ; copy server address to buf_cmd
         mov     esi, param_server_addr
         mov     edi, buf_cmd
   @@:
         lodsb
         stosb
-        cmp     byte [esi], 0
-        jne     @b
-        mov     byte [edi], 0
+        cmp     al, 0x20
+        ja      @r
+        mov     byte[edi-1], 0 ; delete terminating '\n'
 
-        cmp     [param_port], 0
-        je      server_connect.default_port
+        cmp     [param_port], 0x20
+        jbe     server_connect.default_port
         mov     esi, param_port
         jmp     server_connect.do_port
 
@@ -307,17 +283,8 @@ server_connect: ;///////////////////////////////////////////////////////////////
 
   .default_port:
         mov     [sockaddr1.port], 21 shl 8
-        jmp     .done
 
   .done:
-; delete terminating '\n'
-        mov     esi, buf_cmd
-  @@:
-        lodsb
-        cmp     al, 0x20
-        ja      @r
-        mov     byte [esi-1], 0
-
 ; Say to the user that we're resolving
         stdcall arg_handler.set_flags, 0x07     ; reset color
         pcall   arg_handler.print, str_resolve, buf_cmd
@@ -468,7 +435,7 @@ wait_for_usercommand: ;/////////////////////////////////////////////////////////
         cmp     [status], STATUS_NEEDPASSWORD
         je      arg_handler.get_pass
 
-        jmp     arg_handler.get_cmd
+        ijmp    eax, interface_addr, interface.get_cmd
 
   .parse_cmd:
         cmp     dword[buf_cmd], "cwd "
@@ -730,10 +697,7 @@ wait_for_keypress:
         stdcall arg_handler.print, str_push
         invoke  con_getch2
         mcall   close, [controlsocket]
-        jmp     arg_handler.get_server_addr
-
-done:
-        invoke  con_exit, 1
+        ijmp    eax, interface_addr, interface.server_addr
 
 exit:
         mcall   close, [controlsocket]
@@ -781,12 +745,14 @@ str_connect     db 'Connecting...',10,0
 str_waiting     db 'Waiting for welcome message.',10,0
 str_user        db "username: ",0
 str_pass        db "password: ",0
+str_port        db "port (default 21): ",0
+str_path        db "path (optional): ",0
 str_unknown     db "Unknown command or insufficient parameters - type help for more information.",10,0
 str_lcwd        db "Local working directory is now: ",0
 str_bytes_done  db '          ',0
 str_downloaded  db 'Downloaded ',0
 str_bytes       db ' bytes',13,0
-str_args_err    db 'Invalid arguments',10,0
+str_args_err    db 'Invalid arguments. USAGE: ftpc [-cli] [ftp://username:password@server:port/path]',10,0
 
 str_open        db "opening data socket",10,0
 str_close       db 10,"closing data socket",10,0
@@ -845,6 +811,15 @@ folder_info:
         dd  buf_cmd+5
 folder_buf  rb 40
 
+struc interface
+{
+    .init dd 0
+    .server_addr dd 4
+    .get_username dd 8
+    .get_cmd dd 12
+    .exit dd 16
+}
+interface interface
 
 ; import
 align 4
@@ -866,7 +841,7 @@ i_end:
 
 ; uninitialised data
 
-interface       db ?    ; 0 for CLI, 1 for GUI
+interface_addr  rd 1
 
 status          db ?
 
@@ -901,7 +876,7 @@ buf_cmd         rb 1024                 ; buffer for holding command string
 
 path            rb 1024
 
-use_params      db 0
+initial_login   rb 1
 param_user      rb 1024
 param_password  rb 1024
 param_server_addr rb 1024

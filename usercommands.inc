@@ -15,7 +15,7 @@ cmd_bye:
 
 ; Close the control connection
         mcall   close, [controlsocket]
-        jmp     arg_handler.get_server_addr
+        ijmp    eax, interface_addr, interface.server_addr
 
 
 cmd_pwd:

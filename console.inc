@@ -4,26 +4,33 @@ console: ;//////////////////////////////////////////////////////////////////////
 ;? Console-specific functions - initialization, clear screen,                                     ;;
 ;? .get_cmd - Takes user command as input from the console                                        ;;
 ;? .server_addr - Gets server address from user in the form address:port                          ;;
-;? .username/.password - Takes username/password as input from the user                           ;;
+;? .get_username/.get_pass - Takes username/password as input from the user                       ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;>                                                                                                ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;< none                                                                                           ;;
 ;;================================================================================================;;
+
+  dd .init
+  dd .server_addr
+  dd .get_username
+  dd .get_cmd
+  dd .exit
+
   .init:
 ; load console library
         stdcall dll.Load, @import_console
 ; initialize console
         invoke  con_start, 1
         invoke  con_init, 120, 43, 120, 300, str_title
-        ret
-  .cls:
-; Clear screen
         invoke  con_cls
 ; Welcome user
         invoke  con_write_asciiz, str_welcome
         ret
+
   .server_addr:
+        mov     [initial_login], 1
+        invoke  con_cls
         invoke  con_set_flags, 0x07
 ; ask for server addr
         invoke  con_write_asciiz, str_srv_addr
@@ -31,27 +38,41 @@ console: ;//////////////////////////////////////////////////////////////////////
         invoke  con_set_flags, 0x0a
         invoke  con_write_asciiz, str_prompt
 ; read string
-        invoke  con_gets, buf_cmd, 256
+        invoke  con_gets, param_server_addr, 256
 ; check for exit
         test    eax, eax
-        jz      done
-        cmp     byte [buf_cmd], 10
-        jz      done
-; reset color back to grey and print newline
-        invoke  con_set_flags, 0x07
+        jz      .exit
+        cmp     byte [param_server_addr], 10
+        jz      .exit
+
+  .port:
+        invoke  con_write_asciiz, str_port
+        invoke  con_gets, param_port, 256
+
+; read username
+  .get_username:
+        invoke  con_set_flags, 0x0a
+        invoke  con_write_asciiz, str_user
+        invoke  con_gets, param_user, 256
+
+; read password
+  .get_pass:
+        invoke  con_write_asciiz, str_pass
+        invoke  con_set_flags, 0x00             ; black text on black background for password
+        invoke  con_gets, param_password, 256
+        invoke  con_set_flags, 0x0a
+
+        cmp     [initial_login], 1
+        jne     arg_handler.copy_user
+        mov     [initial_login], 0
+
+; get initial path
+  .get_path:
+        invoke  con_write_asciiz, str_path
+        invoke  con_gets, param_path, 256
         invoke  con_write_asciiz, str_newline
-; check whether port specified with hostname after ':'
-        mov     esi, buf_cmd
-  .check_port:
-        lodsb
-        cmp     al, ':'
-        jne     @f
-        mov     byte [esi-1], 0
-        jmp     server_connect.do_port
-  @@:
-        cmp     al, 0x20
-        ja      .check_port
-        jmp     server_connect.default_port
+
+        jmp     arg_handler.connect
 
   .get_cmd:
 ; write prompt
@@ -65,31 +86,9 @@ console: ;//////////////////////////////////////////////////////////////////////
 
         jmp     wait_for_usercommand.parse_cmd
 
-; read username
-  .get_username:
-        invoke  con_write_asciiz, str_user
-        mov     esi, buf_cmd+5
-        invoke  con_gets, esi, 256
-
-        jmp     .send
-
-; read password
-  .get_pass:
-        invoke  con_write_asciiz, str_pass
-        invoke  con_set_flags, 0x00             ; black text on black background for password
-        invoke  con_gets, esi, 256
-        jmp     .send
-
-  .send:
-; find end of string
-        mov     edi, buf_cmd+5
-        mov     ecx, 256
-        xor     al, al
-        repne   scasb
-
-        mov     word[edi-2], 0x0a0d
-        lea     esi, [edi-buf_cmd]
-        jmp     server_connect.send
+  .exit:
+        invoke  con_exit, 1
+        ret
 
 
 ; import

@@ -7,7 +7,7 @@ parse_args: ;///////////////////////////////////////////////////////////////////
 ;;------------------------------------------------------------------------------------------------;;
 ;> buf_cmd = pointer to command line arguments                                                    ;;
 ;;------------------------------------------------------------------------------------------------;;
-;< use_params = 1 (resolution successful) / 0 (unsuccessful)                                      ;;
+;< none                                                                                           ;;
 ;;================================================================================================;;
 
         cmp     dword[buf_cmd], 'ftp:'
@@ -26,63 +26,62 @@ parse_args: ;///////////////////////////////////////////////////////////////////
 
         ; parse user
         lea     edi, [param_user]
-  .user:
+  @@:
         lodsb
         cmp     al, 0
         je      .error
         stosb
         cmp     byte [esi], ':'
-        jne     .user
+        jne     @b
         mov     byte [edi], 0
 
         ; parse password
         inc     esi
         lea     edi, [param_password]
-  .pass:   
+  @@:   
         lodsb
         cmp     al, 0
         je      .error
         stosb
         cmp     byte [esi], '@'
-        jne     .pass
+        jne     @b
         mov     byte [edi], 0
   
         ; parse server address
         inc     esi
         mov     edi, param_server_addr
-  .addr:
+  @@:
         lodsb
         cmp     al, 0
         je      .error
         stosb
         cmp     byte [esi], ':'
-        jne     .addr
+        jne     @b
         mov     byte [edi], 0
 
         ; parse port
         inc     esi
         lea     edi, [param_port]
-  .port:
+  @@:
         lodsb
         cmp     al, 0
         je      .error
         stosb
         cmp     byte [esi], '/'
-        jne     .port
+        jne     @b
         mov     byte [edi], 0        
 
         ; parse path
         inc     esi
         lea     edi, [param_path]
-  .path:   
+  @@:   
         lodsb
         stosb
         cmp     byte [esi], 0
-        jne     .path
+        jne     @b
         mov     byte [edi], 0
 
         ; parameters parsed successfully
-        mov     [use_params], 1
         jmp     arg_handler.connect
 
   .error:
