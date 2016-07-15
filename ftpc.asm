@@ -42,29 +42,41 @@ use32
         dd      path            ; path
 
 include 'macros.inc'
-macro pcall proc,[arg]  ; to call a proc with multiple args
- {  pushd arg
-    call proc }
 macro ijmp reg, addr, method
-{   mov     reg, [addr]
+{   
+    mov     reg, [addr]
     add     reg, [method]
-    jmp     dword[reg] }
+    jmp     dword[reg]
+}
+macro icall reg, addr, method, [arg]
+{  
+    mov     reg, [addr]
+    add     reg, [method]
+    if ~ arg eq
+      pushd arg
+    end if
+    call    dword[reg]
+}
 
 purge mov,add,sub
 
 include 'proc32.inc'
 include 'dll.inc'
 include 'network.inc'
+;include 'KOSfuncs.inc'
 
 include 'box_lib.mac'
 include 'load_lib.mac'
-    @use_library         ;use load lib macros
 
 include 'console.inc'
-include 'gui.inc'
+include 'login_gui.inc'
 include 'usercommands.inc'
 include 'servercommands.inc'
 include 'parser.inc'
+include 'gui.inc'
+
+; TODO: Add logging to text file and Pasta support to FTPC
+;       Replace sysfunc numbers with names from KOSfuncs.inc
 
 ;;================================================================================================;;
 start: ;//////////////////////////////////////////////////////////////////////////////////////////;;
@@ -121,6 +133,9 @@ start: ;////////////////////////////////////////////////////////////////////////
         mcall   30, 1, buf_buffer1                      ; set working directory
 
 ; Usage: ftpc [-cli] [ftp://username:password@server:port/path]
+
+        ; mov     dword[buf_cmd], '-cli' ;;;; to test CLI ;;;;;
+
         cmp     byte[buf_cmd], 0
         jne     @f
         mov     [interface_addr], gui
@@ -131,15 +146,13 @@ start: ;////////////////////////////////////////////////////////////////////////
         jmp     .args_ok
 
   .args_ok:
-        mov     eax, [interface_addr]
-        add     eax, [interface.init]
-        call    dword[eax]
+
+        icall   eax, interface_addr, interface.init
         ; check for ftp://username:pass@server:port/path urls
         cmp     dword[buf_cmd], 'ftp:'
         je      parse_args
         cmp     dword[buf_cmd+5], 'ftp:'
         je      parse_args
-        mov     [initial_login], 1
         ijmp    eax, interface_addr, interface.server_addr
 
   .error:
@@ -159,15 +172,6 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
 
-  .print:
-        invoke  con_write_asciiz, [esp+4]
-        ret     4
-
-; set flags (change text color)
-  .set_flags:
-        invoke  con_set_flags, [esp+4]
-        ret     4
-
   .get_username:
 ; request username
         ijmp    eax, interface_addr, interface.get_username
@@ -179,8 +183,7 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
         mov     edi, buf_cmd+5
         mov     esi, param_user
   @@:
-        lodsb
-        stosb
+        movsb
         cmp     byte [esi-1], 0
         jne     @b
         mov     word[edi-1], 0x0a0d
@@ -195,8 +198,7 @@ arg_handler: ;//////////////////////////////////////////////////////////////////
         mov     edi, buf_cmd+5
         mov     esi, param_password
   @@:
-        lodsb
-        stosb
+        movsb
         cmp     byte[esi-1], 0
         jne     @b
         mov     word[edi-1], 0x0a0d
@@ -250,8 +252,8 @@ server_connect: ;///////////////////////////////////////////////////////////////
   .send:
 ; send username/password/path to the server
         mcall   send, [controlsocket], buf_cmd, , 0
-        stdcall arg_handler.print, str_newline
-        stdcall arg_handler.set_flags, 0x07     ; reset color
+        icall   eax, interface_addr, interface.print, str_newline
+        icall   eax, interface_addr, interface.set_flags, 0x07 ; reset color
         
         jmp     wait_for_servercommand
 
@@ -286,8 +288,8 @@ server_connect: ;///////////////////////////////////////////////////////////////
 
   .done:
 ; Say to the user that we're resolving
-        stdcall arg_handler.set_flags, 0x07     ; reset color
-        pcall   arg_handler.print, str_resolve, buf_cmd
+        icall   eax, interface_addr, interface.set_flags, 0x07 ; reset color
+        icall   eax, interface_addr, interface.print, str_resolve, buf_cmd
 ; resolve name
         push    esp     ; reserve stack place
         invoke  getaddrinfo, buf_cmd, 0, 0, esp
@@ -299,12 +301,12 @@ server_connect: ;///////////////////////////////////////////////////////////////
         jmp     error
     @@:
 ; write results
-        stdcall arg_handler.print, str8         ; ' (',0
+        icall   eax, interface_addr, interface.print, str8 ; ' (',0
         mov     eax, [esi+addrinfo.ai_addr]     ; convert IP address to decimal notation
         mov     eax, [eax+sockaddr_in.sin_addr] ;
         mov     [sockaddr1.ip], eax             ;
         invoke  inet_ntoa, eax                  ;
-        pcall   arg_handler.print, eax, str9    ; <ip>,')',10,0
+        icall   ebx, interface_addr, interface.print, eax, str9 ; <ip>,')',10,0
         invoke  freeaddrinfo, esi               ; free allocated memory
 ; open the socket
         mcall   socket, AF_INET4, SOCK_STREAM, 0
@@ -314,7 +316,7 @@ server_connect: ;///////////////////////////////////////////////////////////////
         jmp     error
     @@: mov     [controlsocket], eax
 ; connect to the server
-        stdcall arg_handler.print, str_connect
+        icall   eax, interface_addr, interface.print, str_connect
         mcall   connect, [controlsocket], sockaddr1, 18
         cmp     eax, -1
         jne     @f
@@ -322,7 +324,7 @@ server_connect: ;///////////////////////////////////////////////////////////////
         jmp     error
     @@: mov     [status], STATUS_CONNECTING
 ; Tell the user we're waiting for the server now.
-        stdcall arg_handler.print, str_waiting
+        icall   eax, interface_addr, interface.print, str_waiting
 
 ; Reset 'offset' variable, it's used by the data receiver
         mov     [offset], 0
@@ -399,9 +401,9 @@ wait_for_servercommand: ;///////////////////////////////////////////////////////
         xor     al, al
         stosb
 
-        stdcall arg_handler.set_flags, 0x03     ; change color
-        pcall   arg_handler.print, buf_cmd, str_newline     ; ; print servercommand
-        stdcall arg_handler.set_flags, 0x07     ; reset color
+        icall   eax, interface_addr, interface.set_flags, 0x03 ; change color
+        icall   eax, interface_addr, interface.print, buf_cmd, str_newline
+        icall   eax, interface_addr, interface.set_flags, 0x07 ; reset color
 
         jmp     server_parser                   ; parse command
 
@@ -425,7 +427,7 @@ wait_for_usercommand: ;/////////////////////////////////////////////////////////
         ja      transfer_queued                 ; Yes, transfer those first.
 
 ; change color to green for user input
-        stdcall arg_handler.set_flags, 0x0a
+        icall   eax, interface_addr, interface.set_flags, 0x0a
 
 ; If we are not yet connected, request username/password
 
@@ -486,7 +488,7 @@ wait_for_usercommand: ;/////////////////////////////////////////////////////////
 
   @@:
 ; Uh oh.. unknown command, tell the user and wait for new input
-        stdcall arg_handler.print, str_unknown
+        icall   eax, interface_addr, interface.print, str_unknown
         jmp     wait_for_usercommand
 
 
@@ -630,9 +632,9 @@ error: ;////////////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
         push    eax
-        stdcall arg_handler.set_flags, 0x0c              ; print errors in red
+        icall   ebx, interface_addr, interface.set_flags, 0x0c ; print errors in red
         pop     eax
-        stdcall arg_handler.print, eax
+        icall   ebx, interface_addr, interface.print, eax
         jmp     wait_for_keypress
 
 
@@ -681,20 +683,20 @@ error_fs:
   @@:
         mov     edi, fs_error_code
         call    dword_ascii    ; convert error code in eax to ascii
-        stdcall arg_handler.set_flags, 0x0c              ; print errors in red
-        pcall   arg_handler.print, str_err_fs, fs_error_code, ebx
+        icall   eax, interface_addr, interface.set_flags, 0x0c ; print errors in red
+        icall   eax, interface_addr, interface.print, str_err_fs, fs_error_code, ebx
         mov     word[fs_error_code], '  '   ; clear error code for next time
-        stdcall arg_handler.set_flags, 0x0a
+        icall   eax, interface_addr, interface.set_flags, 0x0a
 
         jmp     wait_for_usercommand
 
 error_heap:
-        stdcall arg_handler.set_flags, 0x0c              ; print errors in red
-        stdcall arg_handler.print, str_err_heap
+        icall   eax, interface_addr, interface.set_flags, 0x0c ; print errors in red
+        icall   eax, interface_addr, interface.print, str_err_heap
         
-wait_for_keypress:
-        stdcall arg_handler.set_flags, 0x07             ; reset color to grey
-        stdcall arg_handler.print, str_push
+wait_for_keypress: ; TODO: remove con_getch2 dependency
+        icall   eax, interface_addr, interface.set_flags, 0x07 ; reset color to grey
+        icall   eax, interface_addr, interface.print, str_push
         invoke  con_getch2
         mcall   close, [controlsocket]
         ijmp    eax, interface_addr, interface.server_addr
@@ -804,20 +806,26 @@ sockaddr2:
         rb 10
 
 folder_info:
-        dd  5
-        times 3 dd 0
-        dd  folder_buf
-        db  0
-        dd  buf_cmd+5
-folder_buf  rb 40
+        dd 5
+        dd 0
+        dd 0
+        dd 0
+        dd folder_buf
+        db 0
+        dd buf_cmd+5
+
+folder_buf rb 40
 
 struc interface
 {
-    .init dd 0
-    .server_addr dd 4
-    .get_username dd 8
-    .get_cmd dd 12
-    .exit dd 16
+    .init           dd 0
+    .server_addr    dd 4
+    .get_username   dd 8
+    .get_cmd        dd 12
+    .print          dd 16
+    .set_flags      dd 20
+    .list           dd 24
+    .nlst           dd 28
 }
 interface interface
 
@@ -827,13 +835,13 @@ align 4
 
 library network, 'network.obj', libini, 'libini.obj'
 
-import  network,        \
-        getaddrinfo,    'getaddrinfo',  \
+import  network, \
+        getaddrinfo,    'getaddrinfo', \
         freeaddrinfo,   'freeaddrinfo', \
         inet_ntoa,      'inet_ntoa'
 
-import  libini,         \
-        ini.get_str,    'ini_get_str',\
+import  libini, \
+        ini.get_str,    'ini_get_str', \
         ini.get_int,    'ini_get_int'
 
 
@@ -882,5 +890,8 @@ param_password  rb 1024
 param_server_addr rb 1024
 param_path      rb 1024
 param_port      rb 6
+
+sc system_colors
+rb 1024
 
 mem:

@@ -101,7 +101,7 @@ pasv_ok:
         call    ascii_dec
         mov     byte[sockaddr2.port+1], bl
 
-        stdcall arg_handler.print, str_open
+        icall   eax, interface_addr, interface.print, str_open
         mcall   connect, [datasocket], sockaddr2, 18
         cmp     eax, -1
         jne     @f
@@ -110,7 +110,7 @@ pasv_ok:
     @@: jmp     wait_for_servercommand
 
   .fail:
-        stdcall arg_handler.print, str_unknown
+        icall   eax, interface_addr, interface.print, str_unknown
         jmp     wait_for_servercommand
 
 
@@ -124,13 +124,14 @@ data_loop:
         mov     edi, str_bytes_done
         call    dword_ascii
         mov     byte[edi],0
-        pcall   arg_handler.print, str_downloaded, str_bytes_done, str_bytes
-
+        ; TODO: take LIST scenario into account
+        icall   eax, interface_addr, interface.print, str_downloaded, str_bytes_done, str_bytes
         cmp     [operation], OPERATION_STOR
         je      .stor
 
 ; we are receiving data
         mcall   recv, [datasocket], buf_buffer2, BUFFERSIZE, 0
+        ;int3
         pop     edx ; get byte count
         add     edx, eax
         test    ebx, ebx
@@ -142,10 +143,18 @@ data_loop:
 
         cmp     [operation], OPERATION_RDIR
         je      .rdir
+
+        cmp     [operation], OPERATION_LIST
+        je      .list
         
 ; not retreiving, just print to console
-        stdcall arg_handler.print, buf_buffer2
+        icall   eax, interface_addr, interface.print, buf_buffer2
         jmp     data_loop
+
+; for console, simply print. for gui, add name to tree list
+  .list:
+        ijmp    ebx, interface_addr, interface.list
+
 
 ; retreiving, save to file
   .retr:
@@ -176,7 +185,7 @@ data_loop:
         mcall   send, [datasocket], buf_buffer2, , 0
 
   .done:
-        stdcall arg_handler.print, str_close
+        icall   eax, interface_addr, interface.print, str_close
         mcall   close, [datasocket]
         mov     [operation], OPERATION_NONE
         jmp     wait_for_servercommand
@@ -218,7 +227,7 @@ data_loop:
 close_datacon:
         cmp     [operation], OPERATION_NONE
         je      wait_for_usercommand
-        stdcall arg_handler.print, str_close
+        icall   eax, interface_addr, interface.print, str_close
         mcall   close, [datasocket]
         jmp     wait_for_usercommand
 

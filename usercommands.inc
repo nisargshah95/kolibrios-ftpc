@@ -110,7 +110,7 @@ cmd_retr:
         mov     dword[edi - 2], 0x0a0d
         mcall   send, [controlsocket], buf_cmd, , 0
 
-        stdcall arg_handler.print, buf_cmd     ; print command
+        icall   eax, interface_addr, interface.print, buf_cmd
         jmp     wait_for_servercommand
 
 cmd_rdir:        
@@ -187,7 +187,7 @@ cmd_lcwd:
   .print:
         mcall   30, 2, buf_cmd, 256           ; and read it again
 
-        pcall   arg_handler.print, str_lcwd, buf_cmd, str_newline
+        icall   eax, interface_addr, interface.print, str_lcwd, buf_cmd, str_newline
 
         jmp     wait_for_usercommand
 

@@ -75,8 +75,7 @@ parse_args: ;///////////////////////////////////////////////////////////////////
         inc     esi
         lea     edi, [param_path]
   @@:   
-        lodsb
-        stosb
+        movsb
         cmp     byte [esi], 0
         jne     @b
         mov     byte [edi], 0

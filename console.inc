@@ -15,11 +15,13 @@ console: ;//////////////////////////////////////////////////////////////////////
   dd .server_addr
   dd .get_username
   dd .get_cmd
-  dd .exit
+  dd .print
+  dd .set_flags
+  dd .list
 
   .init:
 ; load console library
-        stdcall dll.Load, @import_console
+        stdcall dll.Load, @IMPORT_CONSOLE
 ; initialize console
         invoke  con_start, 1
         invoke  con_init, 120, 43, 120, 300, str_title
@@ -86,26 +88,37 @@ console: ;//////////////////////////////////////////////////////////////////////
 
         jmp     wait_for_usercommand.parse_cmd
 
+  .print:
+        invoke  con_write_asciiz, [esp+4]
+        ret     4
+
+  .set_flags:
+        invoke  con_set_flags, [esp+4]
+        ret     4
+
+  .list:
+        invoke  con_write_asciiz, buf_buffer2
+        jmp     data_loop
+
   .exit:
         invoke  con_exit, 1
-        ret
+        jmp     exit
 
 
-; import
 align 4
-@import_console:
+@IMPORT_CONSOLE:
 
 library console, 'console.obj'
 
-import  console,        \
-        con_start,      'START',        \
-        con_init,       'con_init',     \
-        con_write_asciiz,'con_write_asciiz',     \
-        con_exit,       'con_exit',     \
-        con_gets,       'con_gets',\
-        con_cls,        'con_cls',\
-        con_getch2,     'con_getch2',\
-        con_set_cursor_pos, 'con_set_cursor_pos',\
-        con_write_string, 'con_write_string',\
-        con_get_flags,  'con_get_flags', \
-        con_set_flags,  'con_set_flags'
+import  console, \
+        con_start,          'START', \
+        con_init,           'con_init', \
+        con_write_asciiz,   'con_write_asciiz', \
+        con_exit,           'con_exit', \
+        con_gets,           'con_gets', \
+        con_cls,            'con_cls', \
+        con_getch2,         'con_getch2', \
+        con_set_cursor_pos, 'con_set_cursor_pos', \
+        con_write_string,   'con_write_string', \
+        con_get_flags,      'con_get_flags', \
+        con_set_flags,      'con_set_flags'
