@@ -233,6 +233,18 @@ cmd_mkd:
         jmp     wait_for_servercommand
 
 
+cmd_abor:
+        call    open_dataconnection
+
+        mov     [operation], OPERATION_LIST
+
+        mov     dword[buf_cmd], "ABOR"
+        mov     word[buf_cmd+4], 0x0a0d
+        mcall   send, [controlsocket], buf_cmd, 6, 0
+
+        jmp     wait_for_servercommand
+
+
 ; esi   = source ptr
 ; ecx   = max length of source buffer
 set_filename:

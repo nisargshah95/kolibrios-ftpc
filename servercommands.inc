@@ -5,9 +5,11 @@ server_parser:
 ; first lines will have a dash instead of space after numbers,
 ; thus they are simply ignored in this simple command parser.
 
-        cmp     dword[buf_cmd], "150 "
-        ;je      data_loop
+        cmp     dword[buf_cmd+4], "Open"
         je      init_download_count
+
+        cmp     dword[buf_cmd], "150 "
+        je      data_loop
 
         cmp     dword[buf_cmd], "220 "
         je      connect_ok
@@ -115,17 +117,50 @@ pasv_ok:
 
 
 init_download_count:
-        mov     edx, 0
 
-data_loop:
+        ;int3
+        mov     edx, 0
+        ; search for 'Open' in buf_cmd
+        lea     esi, [buf_cmd+3]
+      @@:
+        inc     esi
+        cmp     dword[esi], 'Open'
+        je      @f
+        cmp     byte[esi], 0
+        jne     @b
+        jmp     data_loop
+      @@:
+        ;int3
+        ; get file size
+        mov     al, '('
+        mov     ecx, -1
+        mov     edi, buf_cmd
+        repne   scasb
+        xor     eax, eax
+        mov     ebx, 10
+        xor     ecx, ecx
+        mov     esi, edi
+      @@:
+        push    eax
+        lodsb
+        sub     al, '0'
+        mov     cl, al
+        pop     eax
+        mul     ebx
+        add     eax, ecx
+        cmp     byte[esi], ' '
+        jne     @b
+        mov     [file_size], eax
+        ;int3
+
+data_loop:  ; edx = bytes downloaded
 
         mov     eax, edx
         push    edx ; store byte count
         mov     edi, str_bytes_done
         call    dword_ascii
         mov     byte[edi],0
-        ; TODO: take LIST scenario into account
-        icall   eax, interface_addr, interface.print, str_downloaded, str_bytes_done, str_bytes
+
         cmp     [operation], OPERATION_STOR
         je      .stor
 
@@ -166,6 +201,9 @@ data_loop:
         jne     error_fs
         pop     eax
         add     [filestruct.offset], eax
+
+        icall   eax, interface_addr, interface.progress, edx, file_size
+
         jmp     data_loop
 
 ; storing, send all data

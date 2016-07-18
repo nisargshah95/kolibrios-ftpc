@@ -18,6 +18,8 @@ console: ;//////////////////////////////////////////////////////////////////////
   dd .print
   dd .set_flags
   dd .list
+  dd .progress
+  dd .error
 
   .init:
 ; load console library
@@ -99,6 +101,16 @@ console: ;//////////////////////////////////////////////////////////////////////
   .list:
         invoke  con_write_asciiz, buf_buffer2
         jmp     data_loop
+
+   ; TODO
+  .progress:
+  ; TODO: take LIST scenario into account
+        icall   eax, interface_addr, interface.print, str_downloaded, str_bytes_done, str_bytes
+        ret
+
+  .error:
+        invoke  con_getch2
+        jmp     .server_addr
 
   .exit:
         invoke  con_exit, 1

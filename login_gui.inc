@@ -8,23 +8,15 @@ login_gui: ;////////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
 
+    ; TODO: print error strings (wrong user, pass, etc.)
+
   .server_addr:
         mov     [initial_login], 1
   .get_username:
   .win_active:
-        ; mcall   9, buf_cmd, -1 ; store thread information
-        ; mov     ecx, dword[buf_cmd+30] ; get pid
-        ; mcall   18, 21,  ; get thread slot
-        ; mov     ecx, eax
-        ; mcall   18, 3,  ; make window active
         jmp     .redraw
 
   .win_deactive:
-        ; mcall   9, buf_cmd, -1
-        ; mov     ecx, dword[buf_cmd+30] ; get pid
-        ; mcall   18, 21,  ; get thread slot
-        ; mov     ecx, eax
-        ; mcall   18, 1,  ; make window deactive
         call    gui.main
         call    gui.draw
         jmp     arg_handler.connect
@@ -38,7 +30,6 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         mcall   12, 1
         mcall   67, 320, 300, 390, 180
         mcall   0, <320,390>, <300,180>, 0x34AABBCC, 0x805080DD, hed
-        ;mcall   0,<35,950>,<20,650>,0x33AABBCC,0x805080DD,hed
 
         push    dword edit_usr
         call    [edit_box_draw]
@@ -128,7 +119,7 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         jmp     .still
     
   .exit:
-        mcall   -1
+        jmp     gui.exit
 
 
 gui_str_connect db 'Connect',0

@@ -23,6 +23,8 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     dd .print
     dd .set_flags
     dd .list
+    dd .progress
+    dd .error
 
 
     .init:
@@ -34,7 +36,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         mcall   48,3,sc,sizeof.system_colors
         mcall   40,0xC0000027
-        ;call    console.init   ; until we have proper gui
         ; initialize stack?
         call    .main
         ;call    .draw
@@ -97,11 +98,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         ret
 
-
     .get_cmd:
     .redraw:
         call     .draw
-
 
     align 4
     .still:
@@ -118,6 +117,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         jmp     .still
 
+    ; TODO wait for key press / time
+    .error:
+        jmp     .server_addr
 
     .exit:
     ;   stdcall mem.Free,[bmp_icon]
@@ -125,7 +127,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall dword[tl_data_clear], tree2
         stdcall [ted_delete], tedit0
         jmp     exit
-
 
     align 4
     .draw:
@@ -156,9 +157,29 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         ; string "copy"
         mcall   4, <50+5,346+5>, 0xb0ffffff, str_copy
         ; draw "LIST" button
-        mcall   8, <475+75,40>, <95,25>, 5, 0x007887A6
+        mcall   8, <475+75,40>, <70,25>, 5, 0x007887A6
         ; string "LIST"
-        mcall   4, <475+75+5,95+5>, 0xb0ffffff, str_list
+        mcall   4, <475+75+5,70+5>, 0xb0ffffff, str_list
+        ; draw "mkd" button
+        mcall   8, <475+75+45+100,35>, <100,20>, 6, 0x007887A6
+        ; string "mkd"
+        mcall   4, <475+75+45+100+5,100+5>, 0xb0ffffff, str_mkd
+        ; draw "DELE" button
+        mcall   8, <475+75+44,40>, <70,25>, 7, 0x007887A6
+        ; string "DELE"
+        mcall   4, <475+75+5+44,70+5>, 0xb0ffffff, str_dele
+        ; draw "RDIR" button
+        mcall   8, <475+75+44+44,40>, <70,25>, 8, 0x007887A6
+        ; string "RDIR"
+        mcall   4, <475+75+5+44+44,70+5>, 0xb0ffffff, str_rdir
+        ; draw "RMD" button
+        mcall   8, <475+75+44+44+44,40>, <70,25>, 9, 0x007887A6
+        ; string "RMD"
+        mcall   4, <475+75+5+44+44+44,70+5>, 0xb0ffffff, str_rmd
+        ; draw "cancel" button
+        mcall   8, <575,55>, <328,25>, 10, 0x007887A6
+        ; string "Cancel"
+        mcall   4, <575+5,328+5>, 0xb0ffffff, str_abort
 
         ;--------------------------
         ; tree list components
@@ -172,13 +193,16 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mov     dword[wScr2.all_redraw],1
         stdcall [scrollbar_ver_draw], dword wScr2
 
+        push    dword edit_new_dir
+        call    [edit_box_draw]
+
+        ; progress bar
         push    dword pb
         call    [progressbar_draw]
 
         mcall   12,2
 
        ret
-
 
     align 16
     .mouse:
@@ -198,10 +222,14 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [ted_mouse], tedit0
         jmp     .still
       .no_edit:
+
         stdcall [tl_mouse], tree1
         stdcall [tl_mouse], tree2
-        jmp     .still
 
+        push    dword edit_new_dir
+        call    [edit_box_mouse]
+
+        jmp     .still
 
     align 16
     .key:
@@ -209,8 +237,10 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [tl_key], tree1
         stdcall [tl_key], tree2
 
-        jmp     .still
+        push    dword edit_new_dir
+        call    [edit_box_key]
 
+        jmp     .still
 
     align 16
     .button:
@@ -218,13 +248,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         cmp     ah, 3
         jne     @f
-
         ijmp    eax, interface_addr, interface.server_addr
-
-        ; add     dword[pb], 3
-        ; push    pb
-        ; call    [progressbar_draw]
-
         jmp     .still
 
       @@:
@@ -235,23 +259,20 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
       @@:
         cmp     ah, 5
-        jne     @f
-        jmp     cmd_list ; fetch directory listing from remote
-        ;jmp     .still
+        je      cmd_list ; fetch directory listing from remote
 
-      @@:
         cmp     ah, 6
-        jne     @f
-        stdcall [ted_but_select_word], tedit0
-        jmp     .still
+        je      create_remote_dir
 
-      @@:
         cmp     ah, 7
-        jne     @f
-        stdcall [ted_but_copy], tedit0 ; do copy on cut
-        jmp     .still
+        je      delete_file
 
-      @@:
+        cmp     ah, 8
+        je      cmd_rdir
+
+        cmp     ah, 9
+        je      remove_dir
+
         cmp     ah, 1
         je      .exit
       
@@ -274,10 +295,11 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         popad
         ret     4
 
+    ; TODO
     .set_flags:
         ret     4
 
-
+    ; TODO: support files with spaces
     .list:  ; buf_buffer2 = data received
             ; eax = size of data
             ; remote_list_buf = buffer containing last incomplete entry (if any)
@@ -309,59 +331,65 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
       .no_backlog:
         stdcall dword[tl_info_clear], tree2
+        ; add ".." node
+        mov     dword[node_entry2+4], 0x2E2E
+        stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
+
         mov     ecx, eax    ; ecx = number of bytes remaining to parse in buf_buffer2
         mov     edi, buf_buffer2
       .start_parsing:
         ; find pointer to name
         cmp     byte[edi], 'd' ; file is a directory
         je      @f
+        cmp     byte[edi], 'l' ; link
+        je      @f
         mov     word[node_entry2], 'fi'
         jmp     .parse
       @@:
         mov     word[node_entry2], 'fo'
 
-      ;   cmp     ecx, 200
-      ;   jg      @f
-      ;   int3
-      ; @@:
-
+        ;int3
       .parse:
-        mov     al, 0x0d
+        mov     edx, 8
+      @@:
+        mov     al, ' '
+        mov     ecx, [esp]
+        add     ecx, buf_buffer2
+        sub     ecx, edi
         
         repne   scasb
         ;int3
         ; check if the (last) entry is incomplete
-        cmp     ecx, 0
-        je      .store_last_entry
-        
-        push    ecx
-        mov     ecx, -1
-        mov     al, ' '
-        std
-        repne   scasb
-        cld
-        pop     ecx
-        ;int3
-        add     edi, 2
+        test    ecx, ecx
+        jz      .store_last_entry
 
+        rep     scasb
+        test    ecx, ecx
+        jz      .store_last_entry
+        
+        dec     edx
+        jnz     @b
+
+      ;   ;; int ;;
+      ;   mov     ecx, [esp]
+      ;   add     ecx, buf_buffer2
+      ;   sub     ecx, edi
       ;   cmp     ecx, 200
       ;   jg      @f
       ;   int3
       ; @@:
+      ;   ;; int ;;
+        ;int3
 
         ; copy name to node_entry
-        mov     esi, edi
-        ;inc     ecx
+        lea     esi, [edi-1]
         lea     edi, [node_entry2+4]
       @@:
         movsb
         cmp     word[esi], 0x0a0d ; end of entry
         jne     @b
 
-      ;   cmp     ecx, 200
-      ;   jg      @f
-      ;   int3
-      ; @@:
+        ;int3
 
         mov     byte[edi], 0
         
@@ -374,10 +402,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
       @@:
         stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
 
-      ;   cmp     ecx, 200
-      ;   jg      @f
-      ;   int3
-      ; @@:
+        ;int3
 
       .added_remote_node:
         ; check whether we are parsing remote_list_buf
@@ -392,10 +417,8 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jmp     .start_parsing
       @@:
         ; any more entries to parse?
-        add     esi, 2 ; skip 0a0d
-        dec     ecx
-        mov     edi, esi
-        cmp     byte[esi], 0
+        lea     edi, [esi+2] ; skip 0a0d
+        cmp     byte[edi], 0
         jne     .start_parsing
         jmp     .done_parsing
 
@@ -424,6 +447,69 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jmp     data_loop
 
 
+    .progress:  ; edx = dl size
+        ;int3
+        ; detect abort
+        mcall   17
+        cmp     ah, 10
+        je      cmd_abor
+
+        push    eax ebx ecx edx
+        mov     ebx, [file_size]
+        mov     ecx, 100
+        mov     eax, edx
+        mul     ecx
+        div     ebx
+        cmp     eax, 100
+        jle     @f
+        mov     eax, 100
+      @@:
+        mov     dword[pb], eax
+        push    pb
+        call    [progressbar_draw]
+        pop     edx ecx ebx eax
+        ret
+
+remove_dir:
+    ;int3
+    stdcall dword[tl_node_get_data], tree2
+    cmp     word[eax], 'fo'
+    jne     gui.still
+    lea     esi, [eax+4]
+    lea     edi, [buf_cmd+4]
+  @@:
+    movsb
+    cmp     byte[esi], 0
+    jne     @b
+    mov     word[edi], 0x000a
+    jmp     cmd_rmd
+
+
+delete_file:
+    stdcall dword[tl_node_get_data], tree2
+    cmp     word[eax], 'fi'
+    jne     gui.still
+    lea     esi, [eax+4]
+    lea     edi, [buf_cmd+5]
+  @@:
+    movsb
+    cmp     byte[esi], 0
+    jne     @b
+    mov     word[edi], 0x000a
+    jmp     cmd_dele
+
+
+create_remote_dir:
+    lea     edi, [buf_cmd+4]
+    mov     esi, new_dir_buf
+  @@:
+    movsb
+    cmp     byte[esi], 0
+    jne     @b
+    mov     word[edi], 0x000a
+    jmp     cmd_mkd
+
+
 ; Function to call when you press [Enter]
 align 4
 fun_on_enter:
@@ -433,6 +519,7 @@ fun_on_enter:
     lea     ecx, [eax+4]
     call    populate_local_tree_list.read_new_dir
     stdcall dword[tl_draw], tree1
+    ret
   @@:
     lea     esi, [eax+4]
     lea     edi, [buf_cmd+5]
@@ -447,6 +534,10 @@ align 4
 fun_on_enter2:
     stdcall dword[tl_node_get_data], tree2
     lea     esi, [eax+4] ; discard '1111'
+    cmp     dword[esi], 0x2E2E
+    jne     @f
+    jmp     cmd_cdup
+  @@:
     cmp     word[eax], 'fo'
     je      @f
     lea     edi, [buf_cmd+5]
@@ -463,6 +554,7 @@ fun_on_enter2:
     je      @f
     jmp     cmd_retr
   @@:
+    stdcall dword[tl_info_clear], tree2
     jmp     cmd_cwd
 
 
@@ -521,7 +613,7 @@ populate_local_tree_list:
             ; ecx = number fo BDFEs remaining
             ; edx = pointer to file's name in BDFE
 
-    ; check for "." and skip it
+    ; check for "." and ignore it
     cmp     word[edx], 0x002E
     je      .added
     ; copy file/folder name to node_entry
@@ -590,10 +682,15 @@ EvSize:
 ;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 hed             db 'FTP Client - KolibriOS',0
-root_dir        db '/rd/1',0
+root_dir        db '/usbhd0/1',0
 str_disconnect  db 'Disconnect',0
 str_copy        db 'Copy',0
 str_list        db 'LIST',0
+str_mkd         db 'MKD',0
+str_dele        db 'DELE',0
+str_rdir        db 'RDIR',0
+str_rmd         db 'RMD',0
+str_abort       db 'Cancel',0
 
 ;----------------------
 ; tree list elements
@@ -603,6 +700,9 @@ tree1 tree_list 64,500,tl_list_box_mode,16,16, 0x8080ff,0x0000ff,0xffffff,\
 
 tree2 tree_list 64,500,tl_list_box_mode,16,16, 0x8080ff,0x0000ff,0xffffff,\
     475+75,125,200-16,185, 14,4,0, el_focus, wScr2,fun_on_enter2
+
+; editbox for mkd
+edit_new_dir edit_box 140,475+75+2,102,0xffffff,0x6a9480,0,0xAABBCC,0,99,new_dir_buf,mouse_dd,0
  
 ; A subsidiary structure for scrolling
 align 4
@@ -792,7 +892,7 @@ scrol_h1:
 ;------------
 struc pb
 {
-    dd 50 ; PB_VALUE          equ +0
+    dd 0  ; PB_VALUE          equ +0
     dd 270; PB_LEFT           equ +4
     dd 335; PB_TOP            equ +8
     dd 300; PB_WIDTH          equ +12
@@ -800,7 +900,7 @@ struc pb
     dd ?  ; PB_STYLE          equ +20
     dd 0  ; PB_MIN            equ +24
     dd 100; PB_MAX            equ +28
-    dd 0x000000; PB_BACK_COLOR     equ +32
+    dd 0xAABBCC; PB_BACK_COLOR     equ +32
     dd 0x7887A6; PB_PROGRESS_COLOR equ +36
     dd 0xFFFFFF; PB_FRAME_COLOR    equ +40
 }
@@ -863,7 +963,7 @@ import  box_lib, \
         progressbar_draw,   'progressbar_draw'
 
 
-len_buf     dd ?
+new_dir_buf rb 512
 folder_data rb 32+32*304
 node_entry  db '1111'
             rb 512

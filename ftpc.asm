@@ -76,7 +76,6 @@ include 'parser.inc'
 include 'gui.inc'
 
 ; TODO: Add logging to text file and Pasta support to FTPC
-;       Replace sysfunc numbers with names from KOSfuncs.inc
 
 ;;================================================================================================;;
 start: ;//////////////////////////////////////////////////////////////////////////////////////////;;
@@ -486,6 +485,9 @@ wait_for_usercommand: ;/////////////////////////////////////////////////////////
         cmp     dword[buf_cmd], "cdup"
         je      cmd_cdup
 
+        cmp     dword[buf_cmd], "abor"
+        je      cmd_abor
+
   @@:
 ; Uh oh.. unknown command, tell the user and wait for new input
         icall   eax, interface_addr, interface.print, str_unknown
@@ -695,11 +697,10 @@ error_heap:
         icall   eax, interface_addr, interface.print, str_err_heap
         
 wait_for_keypress: ; TODO: remove con_getch2 dependency
+        mcall   close, [controlsocket]
         icall   eax, interface_addr, interface.set_flags, 0x07 ; reset color to grey
         icall   eax, interface_addr, interface.print, str_push
-        invoke  con_getch2
-        mcall   close, [controlsocket]
-        ijmp    eax, interface_addr, interface.server_addr
+        ijmp    eax, interface_addr, interface.error
 
 exit:
         mcall   close, [controlsocket]
@@ -825,7 +826,8 @@ struc interface
     .print          dd 16
     .set_flags      dd 20
     .list           dd 24
-    .nlst           dd 28
+    .progress       dd 28
+    .error          dd 32
 }
 interface interface
 
@@ -852,6 +854,8 @@ i_end:
 interface_addr  rd 1
 
 status          db ?
+
+file_size       dd ?
 
 controlsocket   dd ?
 datasocket      dd ?
