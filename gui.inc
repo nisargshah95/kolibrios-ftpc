@@ -53,6 +53,8 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mov     dword[tedit0.rec.width], 9
         mov     dword[tedit0.rec.height], 16
 
+        ; mov     dword[root_dir], '/rd/'
+        ; mov     word[root_dir+4], 0x0031
         ; initialize tree list elements
         stdcall dword[tl_data_init], tree1
         stdcall dword[tl_data_init], tree2
@@ -180,6 +182,10 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   8, <575,55>, <328,25>, 10, 0x007887A6
         ; string "Cancel"
         mcall   4, <575+5,328+5>, 0xb0ffffff, str_abort
+        ; draw "change volume" button
+        mcall   8, <220,55>, <120-20,22>, 11, 0x007887A6
+        ; string "Change"
+        mcall   4, <220+5,120-20+5>, 0xb0ffffff, str_change
 
         ;--------------------------
         ; tree list components
@@ -194,6 +200,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [scrollbar_ver_draw], dword wScr2
 
         push    dword edit_new_dir
+        call    [edit_box_draw]
+
+        push    dword edit_volume
         call    [edit_box_draw]
 
         ; progress bar
@@ -229,6 +238,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         push    dword edit_new_dir
         call    [edit_box_mouse]
 
+        push    dword edit_volume
+        call    [edit_box_mouse]
+
         jmp     .still
 
     align 16
@@ -238,6 +250,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [tl_key], tree2
 
         push    dword edit_new_dir
+        call    [edit_box_key]
+
+        push    dword edit_volume
         call    [edit_box_key]
 
         jmp     .still
@@ -273,6 +288,15 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         cmp     ah, 9
         je      remove_dir
 
+        cmp     ah, 10
+        je      cmd_abor
+
+        cmp     ah, 11
+        jne     @f
+        call    populate_local_tree_list
+        stdcall dword[tl_draw], tree1
+
+    @@:
         cmp     ah, 1
         je      .exit
       
@@ -295,11 +319,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         popad
         ret     4
 
-    ; TODO
     .set_flags:
         ret     4
 
-    ; TODO: support files with spaces
     .list:  ; buf_buffer2 = data received
             ; eax = size of data
             ; remote_list_buf = buffer containing last incomplete entry (if any)
@@ -646,6 +668,7 @@ populate_local_tree_list:
     ret    
 
 
+; TODO: increase console size
 MIN_M_WND_H equ 475 ;
 ;input:
 ; edi = pointer to tedit struct
@@ -682,7 +705,7 @@ EvSize:
 ;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 hed             db 'FTP Client - KolibriOS',0
-root_dir        db '/usbhd0/1',0
+str_change      db 'Change',0
 str_disconnect  db 'Disconnect',0
 str_copy        db 'Copy',0
 str_list        db 'LIST',0
@@ -703,6 +726,9 @@ tree2 tree_list 64,500,tl_list_box_mode,16,16, 0x8080ff,0x0000ff,0xffffff,\
 
 ; editbox for mkd
 edit_new_dir edit_box 140,475+75+2,102,0xffffff,0x6a9480,0,0xAABBCC,0,99,new_dir_buf,mouse_dd,0
+
+; editbox for default volume
+edit_volume edit_box 140,75,125-20,0xffffff,0x6a9480,0,0xAABBCC,0,99,root_dir,mouse_dd,0
  
 ; A subsidiary structure for scrolling
 align 4
@@ -795,13 +821,13 @@ tedit0:
     .max_chars dd 4096 ;+86
     .count_colors_text dd 1 ;+90
     .count_key_words   dd 0 ;+94
-    .color_cursor      dd 0xff0000 ;+98
+    .color_cursor      dd 0xAABBCC ;+98
     .color_wnd_capt    dd 0x0080c0 ;+102
     .color_wnd_work    dd      0x0 ;+106
     .color_wnd_bord    dd 0xffffff ;+110
     .color_select      dd 0x0000ff ;+114
     .color_cur_text    dd 0xffff00 ;+118
-    .color_wnd_text    dd 0x80ffff ;+122
+    .color_wnd_text    dd 0xffffff ;+122
     .syntax_file       dd 0 ;+126
     .syntax_file_size  dd 500 ;+130
     .text_colors       dd 0 ;+134
@@ -963,6 +989,8 @@ import  box_lib, \
         progressbar_draw,   'progressbar_draw'
 
 
+root_dir    db '/rd/1'
+            rb 507
 new_dir_buf rb 512
 folder_data rb 32+32*304
 node_entry  db '1111'
