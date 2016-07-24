@@ -63,7 +63,6 @@ purge mov,add,sub
 include 'proc32.inc'
 include 'dll.inc'
 include 'network.inc'
-;include 'KOSfuncs.inc'
 
 include 'box_lib.mac'
 include 'load_lib.mac'
@@ -75,7 +74,7 @@ include 'servercommands.inc'
 include 'parser.inc'
 include 'gui.inc'
 
-; TODO: Add logging to text file and Pasta support to FTPC
+; TODO: Add Pasta support to FTPC
 
 ;;================================================================================================;;
 start: ;//////////////////////////////////////////////////////////////////////////////////////////;;
@@ -130,6 +129,15 @@ start: ;////////////////////////////////////////////////////////////////////////
 
         invoke  ini.get_str, path, str_general, str_dir, buf_buffer1, BUFFERSIZE, 0
         mcall   30, 1, buf_buffer1                      ; set working directory
+
+        ; initialize log file
+        invoke  ini.get_str, path, str_general, str_logfile, log_file, 512, 0
+        mov     [filestruct2.subfn], 2
+        mov     [filestruct2.offset], 0
+        mov     [filestruct2.size], 0
+        mov     [filestruct2.ptr], 0
+        mov     [filestruct2.name], log_file
+        mcall   70, filestruct2
 
 ; Usage: ftpc [-cli] [ftp://username:password@server:port/path]
 
@@ -333,7 +341,7 @@ server_connect: ;///////////////////////////////////////////////////////////////
 wait_for_servercommand: ;/////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
 ;? Checks if any data received from the server is present in buffer.                              ;;
-;? If not, receives and displays it                                                               ;;
+;? If not, receives and processes it                                                              ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;>                                                                                                ;;
 ;;------------------------------------------------------------------------------------------------;;
@@ -696,7 +704,7 @@ error_heap:
         icall   eax, interface_addr, interface.set_flags, 0x0c ; print errors in red
         icall   eax, interface_addr, interface.print, str_err_heap
         
-wait_for_keypress: ; TODO: remove con_getch2 dependency
+wait_for_keypress:
         mcall   close, [controlsocket]
         icall   eax, interface_addr, interface.set_flags, 0x07 ; reset color to grey
         icall   eax, interface_addr, interface.print, str_push
@@ -784,6 +792,7 @@ str_port_stop   db 'port_stop', 0
 str_ip          db 'ip', 0
 str_dir         db 'dir', 0
 str_general     db 'general', 0
+str_logfile     db 'logfile',0
 
 queued          dd 0
 mode            db 0    ; passive = 0, active = 1
@@ -805,17 +814,6 @@ sockaddr2:
 .port   dw ?
 .ip     dd ?
         rb 10
-
-folder_info:
-        dd 5
-        dd 0
-        dd 0
-        dd 0
-        dd folder_buf
-        db 0
-        dd buf_cmd+5
-
-folder_buf rb 40
 
 struc interface
 {
@@ -882,9 +880,23 @@ filestruct:
   .ptr          dd ?
   .name         rb 1024
 
+filestruct2:
+  .subfn        dd ?
+  .offset       dd ?
+                dd 0
+  .size         dd ?
+  .ptr          dd ?
+                db 0
+  .name         dd ?
+
+folder_buf      rb 40
+
+
 buf_buffer1     rb BUFFERSIZE+1
 buf_buffer2     rb BUFFERSIZE+1
 buf_cmd         rb 1024                 ; buffer for holding command string
+log_file        rb 512 ; holds log file path
+logfile_offset  rd 1 
 
 path            rb 1024
 

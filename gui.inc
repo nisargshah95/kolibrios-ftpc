@@ -11,7 +11,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 ;;------------------------------------------------------------------------------------------------;;
 ;? GUI-specific functions                                                                         ;;
 ;;------------------------------------------------------------------------------------------------;;
-;>                                                                                                ;;
+;> none                                                                                           ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;< none                                                                                           ;;
 ;;================================================================================================;;
@@ -37,8 +37,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   48,3,sc,sizeof.system_colors
         mcall   40,0xC0000027
         ; initialize stack?
-        call    .main
-        ;call    .draw
+
         ret
 
     .server_addr:
@@ -47,7 +46,15 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     .get_username:
         jmp     login_gui.get_username
 
-    .main:
+;;================================================================================================;;
+    .main: ;//////////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Initialize tree list and textedit elements                                                     ;;
+;;------------------------------------------------------------------------------------------------;;
+;> none                                                                                           ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
 
         stdcall [ted_init], tedit0
         mov     dword[tedit0.rec.width], 9
@@ -95,10 +102,14 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         m2m     dword[tree2.data_img],dword[bmp_icon]
         @@:
 
+        mcall   67, 35, 20, 830, 555 ; resize to main gui window's coordinates
+        call    .draw
+
         ; create initial tree list for root_dir
         call    populate_local_tree_list
 
-        ret
+        jmp     arg_handler.connect
+
 
     .get_cmd:
     .redraw:
@@ -121,7 +132,8 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
     ; TODO wait for key press / time
     .error:
-        jmp     .server_addr
+        jmp     login_gui.error
+        ;jmp     .server_addr
 
     .exit:
     ;   stdcall mem.Free,[bmp_icon]
@@ -135,7 +147,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         mcall   12,1
         ; main window
-        mcall   67, 35, 20, 830, 555
         mcall   0,<35,830>,<20,555>,0x33AABBCC,0x805080DD,hed
 
         ;-------------------------
@@ -151,41 +162,41 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [ted_draw], tedit0
 
         ; draw "disconnect" button
-        mcall   8, <50,85>, <45,25>, 3, 0x007887A6
+        mcall   8, <50,85>, <25,25>, 3, 0x007887A6
         ; string "disconnect"
-        mcall   4, <50+5,45+5>, 0xb0ffffff, str_disconnect
+        mcall   4, <50+5,25+5>, 0xb0ffffff, str_disconnect
         ; draw "Copy" button
-        mcall   8, <50,40>, <346,25>, 4, 0x007887A6
+        mcall   8, <50,40>, <326,25>, 4, 0x007887A6
         ; string "copy"
-        mcall   4, <50+5,346+5>, 0xb0ffffff, str_copy
+        mcall   4, <50+5,326+5>, 0xb0ffffff, str_copy
         ; draw "LIST" button
-        mcall   8, <475+75,40>, <70,25>, 5, 0x007887A6
+        mcall   8, <475+75,40>, <50,25>, 5, 0x007887A6
         ; string "LIST"
-        mcall   4, <475+75+5,70+5>, 0xb0ffffff, str_list
+        mcall   4, <475+75+5,50+5>, 0xb0ffffff, str_list
         ; draw "mkd" button
-        mcall   8, <475+75+45+100,35>, <100,20>, 6, 0x007887A6
+        mcall   8, <475+75+45+100,35>, <80,20>, 6, 0x007887A6
         ; string "mkd"
-        mcall   4, <475+75+45+100+5,100+5>, 0xb0ffffff, str_mkd
+        mcall   4, <475+75+45+100+5,80+5>, 0xb0ffffff, str_mkd
         ; draw "DELE" button
-        mcall   8, <475+75+44,40>, <70,25>, 7, 0x007887A6
+        mcall   8, <475+75+44,40>, <50,25>, 7, 0x007887A6
         ; string "DELE"
-        mcall   4, <475+75+5+44,70+5>, 0xb0ffffff, str_dele
+        mcall   4, <475+75+5+44,50+5>, 0xb0ffffff, str_dele
         ; draw "RDIR" button
-        mcall   8, <475+75+44+44,40>, <70,25>, 8, 0x007887A6
+        mcall   8, <475+75+44+44,40>, <50,25>, 8, 0x007887A6
         ; string "RDIR"
-        mcall   4, <475+75+5+44+44,70+5>, 0xb0ffffff, str_rdir
+        mcall   4, <475+75+5+44+44,50+5>, 0xb0ffffff, str_rdir
         ; draw "RMD" button
-        mcall   8, <475+75+44+44+44,40>, <70,25>, 9, 0x007887A6
+        mcall   8, <475+75+44+44+44,40>, <50,25>, 9, 0x007887A6
         ; string "RMD"
-        mcall   4, <475+75+5+44+44+44,70+5>, 0xb0ffffff, str_rmd
+        mcall   4, <475+75+5+44+44+44,50+5>, 0xb0ffffff, str_rmd
         ; draw "cancel" button
-        mcall   8, <575,55>, <328,25>, 10, 0x007887A6
+        mcall   8, <575,55>, <308,25>, 10, 0x007887A6
         ; string "Cancel"
-        mcall   4, <575+5,328+5>, 0xb0ffffff, str_abort
+        mcall   4, <575+5,308+5>, 0xb0ffffff, str_abort
         ; draw "change volume" button
-        mcall   8, <220,55>, <120-20,22>, 11, 0x007887A6
+        mcall   8, <220,55>, <100-20,22>, 11, 0x007887A6
         ; string "Change"
-        mcall   4, <220+5,120-20+5>, 0xb0ffffff, str_change
+        mcall   4, <220+5,100-20+5>, 0xb0ffffff, str_change
 
         ;--------------------------
         ; tree list components
@@ -316,15 +327,37 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jne     @b
         stdcall [ted_text_add], tedit0, tedit_buffer, ecx, ebx
         stdcall [ted_draw], tedit0
+        ; write to log file
+        mov     [filestruct2.subfn], 3
+        m2m     [filestruct2.offset], [logfile_offset]
+        mov     [filestruct2.size], ecx
+        mov     [filestruct2.ptr], tedit_buffer
+        mov     [filestruct2.name], log_file
+        mcall   70, filestruct2
+        test    eax, eax
+        jnz     error_fs
+        mov     eax, [logfile_offset]
+        add     eax, ecx
+        mov     [logfile_offset], eax
         popad
         ret     4
 
     .set_flags:
         ret     4
 
-    .list:  ; buf_buffer2 = data received
-            ; eax = size of data
-            ; remote_list_buf = buffer containing last incomplete entry (if any)
+    ; TODO: this block is not called when remote directory is empty
+;;================================================================================================;;
+    .list: ;//////////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? update tree2 with remote directory listing                                                     ;;
+;;------------------------------------------------------------------------------------------------;;
+;> buf_buffer2 = received data buffer                                                             ;;
+;> eax = size of data                                                                             ;;
+;> remote_list_buf = buffer containing last incomplete entry (if any)                             ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
+
         push    edx
         push    eax
         ;int3
@@ -469,7 +502,16 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jmp     data_loop
 
 
-    .progress:  ; edx = dl size
+;;================================================================================================;;
+    .progress: ;//////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Update progress bar every time new data is received from data_loop block                       ;;
+;;------------------------------------------------------------------------------------------------;;
+;> edx = no. of bytes downloaded                                                                  ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
+
         ;int3
         ; detect abort
         mcall   17
@@ -580,9 +622,15 @@ fun_on_enter2:
     jmp     cmd_cwd
 
 
-; this clears existing tree list and fills it with file names from current directory
-; TODO: switching volumes (/usbhd0/1/, /tmp0/1/, etc) is not supported
-populate_local_tree_list:
+;;================================================================================================;;
+populate_local_tree_list: ;///////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Update tree1 with file names from current working directory                                    ;;
+;;------------------------------------------------------------------------------------------------;;
+;> none                                                                                           ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
 
     mov     [filestruct.subfn], 1
     mov     [filestruct.size], 32
@@ -622,7 +670,7 @@ populate_local_tree_list:
     je      @f
     cmp     eax, 6 ; EOF
     je      @f
-    ; TODO: add error handling
+    jmp     error_fs
 
   @@:
     test    ebx, ebx
@@ -632,10 +680,10 @@ populate_local_tree_list:
     mov     edx, folder_data+32+40 ; pointer to first file's name in BDFE
 
   .inner:   ; ebx = total number of BDFEs
-            ; ecx = number fo BDFEs remaining
+            ; ecx = number of BDFEs remaining
             ; edx = pointer to file's name in BDFE
 
-    ; check for "." and ignore it
+    ; ignore "." entry
     cmp     word[edx], 0x002E
     je      .added
     ; copy file/folder name to node_entry
@@ -668,8 +716,7 @@ populate_local_tree_list:
     ret    
 
 
-; TODO: increase console size
-MIN_M_WND_H equ 475 ;
+MIN_M_WND_H equ 500 ;
 ;input:
 ; edi = pointer to tedit struct
 align 4
@@ -719,16 +766,16 @@ str_abort       db 'Cancel',0
 ; tree list elements
 ;----------------------
 tree1 tree_list 64,500,tl_list_box_mode,16,16, 0x8080ff,0x0000ff,0xffffff,\
-    75,125,200-16,185, 14,4,0, el_focus, wScr,fun_on_enter
+    75,105,200-16,185, 14,4,0, el_focus, wScr,fun_on_enter
 
 tree2 tree_list 64,500,tl_list_box_mode,16,16, 0x8080ff,0x0000ff,0xffffff,\
-    475+75,125,200-16,185, 14,4,0, el_focus, wScr2,fun_on_enter2
+    475+75,105,200-16,185, 14,4,0, el_focus, wScr2,fun_on_enter2
 
 ; editbox for mkd
-edit_new_dir edit_box 140,475+75+2,102,0xffffff,0x6a9480,0,0xAABBCC,0,99,new_dir_buf,mouse_dd,0
+edit_new_dir edit_box 140,475+75+2,82,0xffffff,0x6a9480,0,0xAABBCC,0,99,new_dir_buf,mouse_dd,0
 
 ; editbox for default volume
-edit_volume edit_box 140,75,125-20,0xffffff,0x6a9480,0,0xAABBCC,0,99,root_dir,mouse_dd,0
+edit_volume edit_box 140,75,105-20,0xffffff,0x6a9480,0,0xAABBCC,0,99,root_dir,mouse_dd,0
  
 ; A subsidiary structure for scrolling
 align 4
@@ -807,7 +854,7 @@ wScr2:
 ;----------------------
 align 4
 tedit0:
-    .wnd BOX 50,375,325,240 ;+ 0 195,5+40,325,240
+    .wnd BOX 50,355,325,240 ;+ 0 195,5+40,325,240
     .rec BOX 30,13,7,10   ;+16
     .drag_m db 0 ;+32
     .drag_k db 0 ;+33
@@ -920,7 +967,7 @@ struc pb
 {
     dd 0  ; PB_VALUE          equ +0
     dd 270; PB_LEFT           equ +4
-    dd 335; PB_TOP            equ +8
+    dd 315; PB_TOP            equ +8
     dd 300; PB_WIDTH          equ +12
     dd 15 ; PB_HEIGHT         equ +16
     dd ?  ; PB_STYLE          equ +20

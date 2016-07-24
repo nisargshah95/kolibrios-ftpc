@@ -91,7 +91,31 @@ console: ;//////////////////////////////////////////////////////////////////////
         jmp     wait_for_usercommand.parse_cmd
 
   .print:
-        invoke  con_write_asciiz, [esp+4]
+        pushad
+        invoke  con_write_asciiz, [esp+36]
+
+        mov     esi, [esp+36]
+        mov     ecx, -1
+    @@:
+        inc     ecx
+        lodsb
+        cmp     al, 0
+        jne     @b
+
+        ; write to log file
+        mov     [filestruct2.subfn], 3
+        m2m     [filestruct2.offset], [logfile_offset]
+        mov     [filestruct2.size], ecx
+        mov     eax, [esp+36]
+        mov     [filestruct2.ptr], eax
+        mov     [filestruct2.name], log_file
+        mcall   70, filestruct2
+        test    eax, eax
+        jnz     error_fs
+        mov     eax, [logfile_offset]
+        add     eax, ecx
+        mov     [logfile_offset], eax
+        popad
         ret     4
 
   .set_flags:

@@ -135,15 +135,27 @@ cmd_stor:
 
         mov     [operation], OPERATION_STOR
 
-        mov     [filestruct.subfn], 0   ; read file
+        ; get file size
+        mov     [filestruct.subfn], 5
         mov     [filestruct.offset], 0
         mov     [filestruct.offset+4], 0
-        mov     [filestruct.size], BUFFERSIZE
-        mov     [filestruct.ptr], buf_buffer2
+        mov     [filestruct.size], 0
+        mov     [filestruct.ptr], folder_buf
 
         mov     esi, buf_cmd+5
         mov     ecx, 256-5
         call    set_filename
+
+        mcall   70, filestruct
+        ;int3
+        mov     eax, dword[folder_buf+32] ; supports file size upto 4GB
+        mov     [file_size], eax
+
+        mov     [filestruct.subfn], 0   ; read file
+        ; mov     [filestruct.offset], 0
+        ; mov     [filestruct.offset+4], 0
+        mov     [filestruct.size], BUFFERSIZE
+        mov     [filestruct.ptr], buf_buffer2
 
         mov     dword[buf_cmd], "STOR"
         mov     byte[buf_cmd+4], " "
@@ -176,7 +188,12 @@ cmd_lcwd:
         mov     byte[esi-1], 0
 
         ; check whether entered path is valid (folder exists)
-        mcall   70, folder_info
+        mov     [filestruct2.subfn], 5
+        mov     [filestruct2.offset], 0
+        mov     [filestruct2.size], 0
+        mov     [filestruct2.ptr], folder_buf
+        mov     [filestruct2.name], buf_cmd+5
+        mcall   70, filestruct2
         cmp     eax, 0
         je      @f
         cmp     eax, 2

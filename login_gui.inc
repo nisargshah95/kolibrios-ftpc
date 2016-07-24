@@ -12,24 +12,17 @@ login_gui: ;////////////////////////////////////////////////////////////////////
 
   .server_addr:
         mov     [initial_login], 1
+        mcall   67, 320, 300, 390, 200 ; resize to login gui window size
   .get_username:
-  .win_active:
-        jmp     .redraw
-
-  .win_deactive:
-        call    gui.main
-        call    gui.draw
-        jmp     arg_handler.connect
-
   .redraw:
         call    .draw
         jmp     .still
 
+
   align 4
   .draw:
         mcall   12, 1
-        mcall   67, 320, 300, 390, 180
-        mcall   0, <320,390>, <300,180>, 0x34AABBCC, 0x805080DD, hed
+        mcall   0, <320,390>, <300,200>, 0x34AABBCC, 0x805080DD, hed
 
         push    dword edit_usr
         call    [edit_box_draw]
@@ -47,7 +40,7 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         call    [edit_box_draw]
 
         ; draw "connect" button
-        mcall   8, <162,65>, <120,25>, 2, 0x007887a6
+        mcall   8, <162,65>, <140,25>, 2, 0x007887a6
 
         ; draw strings
         mcall   4, <3,5>, 0xb0000000, gui_str_usr
@@ -55,7 +48,9 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         mcall   4, <3,45>, 0xb0000000, gui_str_server
         mcall   4, <3,65>, 0xb0000000, gui_str_port
         mcall   4, <3,85>, 0xb0000000, gui_str_path
-        mcall   4, <167,125>, 0xb0ffffff, gui_str_connect
+        mcall   4, <167,145>, 0xb0ffffff, gui_str_connect
+        mcall   4, <3,115>, 0xb0ff0000, [str_error_addr]
+        mov     [str_error_addr], gui_str_null ; reset error string address
 
         mcall   12, 2
         ret
@@ -94,7 +89,7 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         jz      .exit
 
         dec     ah   ; 'Connect' button clicked
-        jz      .win_deactive
+        jz      gui.main
 
         jmp     .still
 
@@ -117,6 +112,10 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         call    [edit_box_key]
 
         jmp     .still
+
+  .error:
+        mov     [str_error_addr], gui_str_error
+        jmp     .server_addr
     
   .exit:
         jmp     gui.exit
@@ -128,6 +127,10 @@ gui_str_pass    db 'Password:',0
 gui_str_server  db 'Server:',0
 gui_str_port    db 'Port:',0
 gui_str_path    db 'Path:',0
+gui_str_error   db 'ERROR! Check log file for details',0
+gui_str_null    db ' ',0
+
+str_error_addr  dd gui_str_null
 
 ; login window components
 edit_usr edit_box 300,75,5, 0xffffff,0x6f9480,0,0xAABBCC,0,99,param_user,mouse_dd,ed_focus

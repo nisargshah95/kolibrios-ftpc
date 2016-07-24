@@ -53,6 +53,7 @@ welcome:
 
 
 connect_ok:
+
         mov     [status], STATUS_CONNECTED
         jmp     arg_handler.copy_user
 
