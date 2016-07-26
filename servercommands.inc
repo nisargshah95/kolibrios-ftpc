@@ -154,17 +154,13 @@ init_download_count:
         mov     [file_size], eax
         ;int3
 
-data_loop:  ; edx = bytes downloaded
-
-        mov     eax, edx
-        push    edx ; store byte count
-        mov     edi, str_bytes_done
-        call    dword_ascii
-        mov     byte[edi],0
+data_loop:
 
         cmp     [operation], OPERATION_STOR
         je      .stor
 
+        ;int3
+        push    edx
 ; we are receiving data
         mcall   recv, [datasocket], buf_buffer2, BUFFERSIZE, 0
         ;int3
@@ -203,7 +199,7 @@ data_loop:  ; edx = bytes downloaded
         pop     eax
         add     [filestruct.offset], eax
 
-        icall   eax, interface_addr, interface.progress, edx, file_size
+        icall   eax, interface_addr, interface.progress
 
         jmp     data_loop
 
@@ -217,11 +213,15 @@ data_loop:  ; edx = bytes downloaded
         add     [filestruct.offset], ebx
         mov     esi, ebx
         mcall   send, [datasocket], buf_buffer2, , 0
+        mov     edx, [filestruct.offset]
+        icall   eax, interface_addr, interface.progress
         jmp     .stor
 
   .last_call:
         mov     esi, ebx
         mcall   send, [datasocket], buf_buffer2, , 0
+        mov     edx, [filestruct.offset]
+        icall   eax, interface_addr, interface.progress
 
   .done:
         icall   eax, interface_addr, interface.print, str_close

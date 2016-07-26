@@ -112,6 +112,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
 
     .get_cmd:
+        dec     [auto_list]
+        jz      cmd_list
+
     .redraw:
         call     .draw
 
@@ -119,6 +122,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     .still:
 
         mcall   10
+
         dec     eax
         jz      .redraw
         dec     eax
@@ -285,8 +289,11 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
       @@:
         cmp     ah, 5
+        jne     @f
+        call    .clear_remote_tree
         je      cmd_list ; fetch directory listing from remote
 
+      @@:
         cmp     ah, 6
         je      create_remote_dir
 
@@ -305,7 +312,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         cmp     ah, 11
         jne     @f
         call    populate_local_tree_list
-        stdcall dword[tl_draw], tree1
 
     @@:
         cmp     ah, 1
@@ -345,7 +351,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     .set_flags:
         ret     4
 
-    ; TODO: this block is not called when remote directory is empty
 ;;================================================================================================;;
     .list: ;//////////////////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
@@ -358,9 +363,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
 
+        ;int3
         push    edx
         push    eax
-        ;int3
         ; check if any incomplete entry to be parsed
         cmp     byte[remote_list_buf], 0
         je      .no_backlog
@@ -368,7 +373,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mov     edi, remote_list_buf
         mov     al, 0
         repne   scasb
-        ;int3
         ; copy rest of the incomplete entry to remote_list_buf
         mov     esi, buf_buffer2
         dec     edi
@@ -385,10 +389,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jmp     .start_parsing
 
       .no_backlog:
-        stdcall dword[tl_info_clear], tree2
-        ; add ".." node
-        mov     dword[node_entry2+4], 0x2E2E
-        stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
 
         mov     ecx, eax    ; ecx = number of bytes remaining to parse in buf_buffer2
         mov     edi, buf_buffer2
@@ -497,9 +497,17 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jne     @b
 
       .done_parsing:
+        call    .draw ; to update tree list immediately in case of "auto_list"
         pop     eax
         pop     edx
         jmp     data_loop
+
+        ; clear tree list and add ".." node before executing "LIST"
+      .clear_remote_tree:
+        stdcall dword[tl_info_clear], tree2
+        mov     dword[node_entry2+4], 0x2E2E
+        stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
+        ret
 
 
 ;;================================================================================================;;
@@ -580,9 +588,9 @@ fun_on_enter:
     stdcall dword[tl_node_get_data], tree1
     cmp     word[eax], 'fi'
     je      @f
-    lea     ecx, [eax+4]
+    lea     ecx, [eax+4] ; discard first 4 bytes
     call    populate_local_tree_list.read_new_dir
-    stdcall dword[tl_draw], tree1
+    ;stdcall dword[tl_draw], tree1
     ret
   @@:
     lea     esi, [eax+4]
@@ -597,9 +605,10 @@ fun_on_enter:
 align 4
 fun_on_enter2:
     stdcall dword[tl_node_get_data], tree2
-    lea     esi, [eax+4] ; discard '1111'
+    lea     esi, [eax+4]
     cmp     dword[esi], 0x2E2E
     jne     @f
+    mov     [auto_list], 1
     jmp     cmd_cdup
   @@:
     cmp     word[eax], 'fo'
@@ -619,6 +628,7 @@ fun_on_enter2:
     jmp     cmd_retr
   @@:
     stdcall dword[tl_info_clear], tree2
+    mov     [auto_list], 1
     jmp     cmd_cwd
 
 
@@ -709,6 +719,7 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
   .added:
     add     edx, 304 ; 304 = length of BDFE. jump to next file's name
     loop    .inner
+    stdcall dword[tl_draw], tree1
     cmp     ebx, 32
     je      .outer ; more BDFEs to come
 
@@ -1036,6 +1047,7 @@ import  box_lib, \
         progressbar_draw,   'progressbar_draw'
 
 
+auto_list   db 1 ; to run LIST immediately after CWD
 root_dir    db '/rd/1'
             rb 507
 new_dir_buf rb 512

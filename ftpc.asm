@@ -419,8 +419,8 @@ wait_for_servercommand: ;///////////////////////////////////////////////////////
 ;;================================================================================================;;
 wait_for_usercommand: ;///////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
-;? Reads first four characters of FTP command entered by the user and compares it                 ;;
-;? with valid FTP commands. Jumps to appropriate handling routine in usercommands.inc             ;;
+;? Reads the FTP command entered by the user and compares it with valid FTP commands.             ;;
+;? Jumps to appropriate handling routine in usercommands.inc                                      ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;> status = socket connection status                                                              ;;
 ;> buf_cmd = command entered by the user                                                          ;;

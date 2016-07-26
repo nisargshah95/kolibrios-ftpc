@@ -126,9 +126,12 @@ console: ;//////////////////////////////////////////////////////////////////////
         invoke  con_write_asciiz, buf_buffer2
         jmp     data_loop
 
-   ; TODO
-  .progress:
+  .progress: ; edx = no. of bytes transferred
   ; TODO: take LIST scenario into account
+        mov     eax, edx
+        mov     edi, str_bytes_done
+        call    dword_ascii
+        mov     byte[edi],0
         icall   eax, interface_addr, interface.print, str_downloaded, str_bytes_done, str_bytes
         ret
 
