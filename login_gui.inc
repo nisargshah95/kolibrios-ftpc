@@ -12,8 +12,10 @@ login_gui: ;////////////////////////////////////////////////////////////////////
 
   .server_addr:
         mov     [initial_login], 1
-        mcall   67, 320, 300, 390, 200 ; resize to login gui window size
   .get_username:
+        ; in case of error when either login_gui.server_addr or 
+        ; login_gui.get_username is called, should resize window
+        mcall   67, 320, 300, 390, 200 ; resize to login gui window size
   .redraw:
         call    .draw
         jmp     .still

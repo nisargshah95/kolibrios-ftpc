@@ -41,6 +41,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         ret
 
     .server_addr:
+        mov     [auto_list], 1
         jmp     login_gui.server_addr
 
     .get_username:
@@ -113,7 +114,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
     .get_cmd:
         dec     [auto_list]
-        jz      cmd_list
+        jnz     .redraw
+        call    .clear_remote_tree
+        jmp     cmd_list
 
     .redraw:
         call     .draw
@@ -173,10 +176,10 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   8, <50,40>, <326,25>, 4, 0x007887A6
         ; string "copy"
         mcall   4, <50+5,326+5>, 0xb0ffffff, str_copy
-        ; draw "LIST" button
-        mcall   8, <475+75,40>, <50,25>, 5, 0x007887A6
-        ; string "LIST"
-        mcall   4, <475+75+5,50+5>, 0xb0ffffff, str_list
+        ; draw "Search" button
+        mcall   8, <475+75+90+15,55>, <20,25>, 5, 0x007887A6
+        ; string "Search"
+        mcall   4, <475+75+90+15+5,20+5>, 0xb0ffffff, str_search
         ; draw "mkd" button
         mcall   8, <475+75+45+100,35>, <80,20>, 6, 0x007887A6
         ; string "mkd"
@@ -201,6 +204,10 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   8, <220,55>, <100-20,22>, 11, 0x007887A6
         ; string "Change"
         mcall   4, <220+5,100-20+5>, 0xb0ffffff, str_change
+        ; draw "LIST" button
+        mcall   8, <475+75,40>, <50,25>, 12, 0x007887A6
+        ; string "LIST"
+        mcall   4, <475+75+5,50+5>, 0xb0ffffff, str_list
 
         ;--------------------------
         ; tree list components
@@ -218,6 +225,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         call    [edit_box_draw]
 
         push    dword edit_volume
+        call    [edit_box_draw]
+
+        push    dword edit_filter
         call    [edit_box_draw]
 
         ; progress bar
@@ -256,6 +266,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         push    dword edit_volume
         call    [edit_box_mouse]
 
+        push    dword edit_filter
+        call    [edit_box_mouse]
+
         jmp     .still
 
     align 16
@@ -268,6 +281,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         call    [edit_box_key]
 
         push    dword edit_volume
+        call    [edit_box_key]
+
+        push    dword edit_filter
         call    [edit_box_key]
 
         jmp     .still
@@ -284,14 +300,14 @@ gui: ;//////////////////////////////////////////////////////////////////////////
       @@:
         cmp     ah, 4
         jne     @f
-        stdcall [ted_but_copy], tedit0
+        ;stdcall [ted_but_copy], tedit0
+        
         jmp     .still
 
       @@:
         cmp     ah, 5
         jne     @f
-        call    .clear_remote_tree
-        je      cmd_list ; fetch directory listing from remote
+        je      filter_remote_list
 
       @@:
         cmp     ah, 6
@@ -314,6 +330,11 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         call    populate_local_tree_list
 
     @@:
+
+        cmp     ah, 12
+        call    .clear_remote_tree
+        je      cmd_list
+
         cmp     ah, 1
         je      .exit
       
@@ -321,6 +342,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
     .print:
         pushad
+
         mov     ebx, ted_opt_ed_change_time + ted_opt_ed_move_cursor
         mov     ecx, 2 ; 0a0d
         mov     esi, [esp+36]
@@ -356,7 +378,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
 
-        ;int3
+        ; int3
         push    edx
         push    eax
         ; check if any incomplete entry to be parsed
@@ -373,7 +395,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         movsb
         cmp     word[esi-2], 0x0a0d
         jne     @b
-        ;int3
         mov     byte[edi], 0
         mov     ecx, edi
         sub     ecx, remote_list_buf ; ecx = length of remote_list_buf
@@ -396,7 +417,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
       @@:
         mov     word[node_entry2], 'fo'
 
-        ;int3
       .parse:
         mov     edx, 8
       @@:
@@ -406,7 +426,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         sub     ecx, edi
         
         repne   scasb
-        ;int3
+
         ; check if the (last) entry is incomplete
         test    ecx, ecx
         jz      .store_last_entry
@@ -418,39 +438,24 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         dec     edx
         jnz     @b
 
-      ;   ;; int ;;
-      ;   mov     ecx, [esp]
-      ;   add     ecx, buf_buffer2
-      ;   sub     ecx, edi
-      ;   cmp     ecx, 200
-      ;   jg      @f
-      ;   int3
-      ; @@:
-      ;   ;; int ;;
-        ;int3
-
-        ; copy name to node_entry
         lea     esi, [edi-1]
         lea     edi, [node_entry2+4]
       @@:
         movsb
+        ; TODO: page fault here
+        ; page fault use case - ftp.gnu.org -> gnu/emacs -> search "21"
         cmp     word[esi], 0x0a0d ; end of entry
         jne     @b
-
-        ;int3
-
         mov     byte[edi], 0
-        
+
         ; add node to tree list
         cmp     word[node_entry2], 'fi'
         jne     @f
         stdcall dword[tl_node_add], tree2, 0, node_entry2
-        ;int3
+
         jmp     .added_remote_node
       @@:
         stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
-
-        ;int3
 
       .added_remote_node:
         ; check whether we are parsing remote_list_buf
@@ -471,7 +476,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jmp     .done_parsing
 
       .store_last_entry:
-        ;int3
         ; find index of the last incomplete entry
         mov     ecx, -1
         mov     eax, [esp]
@@ -480,7 +484,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         std
         repne   scasb
         cld
-        ;int3
+
         ; copy last (incomplete) entry of buf_buffer2 to remote_list_buf
         lea     esi, [edi+2]
         mov     edi, remote_list_buf
@@ -497,6 +501,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         ; clear tree list and add ".." node before executing "LIST"
       .clear_remote_tree:
+
         stdcall dword[tl_info_clear], tree2
         mov     dword[node_entry2+4], 0x2E2E
         stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
@@ -534,6 +539,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         call    [progressbar_draw]
         pop     edx ecx ebx eax
         ret
+
 
 remove_dir:
     ;int3
@@ -753,18 +759,141 @@ EvSize:
     ret
 
 
+;;================================================================================================;;
+filter_remote_list: ;/////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Filter tree list according to pattern specified in 'filter'                                    ;;
+;;------------------------------------------------------------------------------------------------;;
+;> none                                                                                           ;;
+;;------------------------------------------------------------------------------------------------;;
+;< none                                                                                           ;;
+;;================================================================================================;;
+        stdcall dword[tl_cur_beg], tree2
+
+    .next_node:
+
+        ; int3
+        stdcall dword[tl_node_get_data], tree2
+        ; check whether any nodes left
+        cmp     eax, 0
+        jne     @f
+        stdcall dword[tl_draw], tree2
+        stdcall dword[edit_box_set_text], edit_filter, str_null
+        je      gui.still
+
+    @@:
+        cmp     byte[filter], 0
+        je      gui.still
+
+        ; calculate size of node entry
+        lea     esi, [eax+4]
+        mov     edi, esi
+        mov     ecx, -1
+    @@:
+        lodsb
+        inc     ecx
+        cmp     al, 0
+        jne     @b
+
+        ; calculate size of pattern
+        mov     esi, filter
+        mov     edx, -1
+    @@:
+        lodsb
+        inc     edx
+        cmp     al, 0
+        jne     @b
+
+        mov     esi, filter
+
+        call    search
+        pop     esi
+        test    al, al
+        ; int3
+
+        jnz     .get_next
+        stdcall dword[tl_node_delete], tree2
+        stdcall dword[tl_draw], tree2
+        jmp     @f
+
+    .get_next:
+        stdcall dword[tl_cur_next], tree2
+        stdcall dword[tl_draw], tree2
+
+    @@:
+        jmp     .next_node
+
+
+;;================================================================================================;;
+search: ;/////////////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Search for a substring within a string                                                         ;;
+;;------------------------------------------------------------------------------------------------;;
+;> edi = pointer to haystack                                                                      ;;
+;> ecx = size of haystack                                                                         ;;
+;> esi = pointer to needle                                                                        ;;
+;> edx = size of needle                                                                           ;;
+;;------------------------------------------------------------------------------------------------;;
+;< al = 0 (not found) / 1 (found)                                                                 ;;
+;;================================================================================================;;
+    
+    ; int3
+    push    ebx ecx edx esi edi
+    ; if length of haystack < length of needle
+    cmp     ecx, edx
+    jge     @f
+    mov     bh, 0
+    jmp     .done
+  @@:
+    mov     bh, 1 ; flag (0 = not found, 1 = found)
+    sub     ecx, edx
+    dec     edi
+
+  .outer:
+    cmp     ecx, 0
+    jl      .done
+    dec     ecx
+    inc     edi
+    mov     bh, 1 ; flag (0 = not found, 1 = found)
+    mov     edx, [esp+8]
+    mov     esi, [esp+4]
+
+  .inner:
+    cmp     edx, 0
+    je      .done
+    dec     edx
+
+    mov     eax, esi
+    sub     eax, [esp+4]
+    mov     al, byte[edi+eax]
+    mov     bl, byte[esi]
+
+    inc     esi
+    cmp     al, bl
+    je      .inner
+    mov     bh, 0
+    jmp     .outer
+
+
+  .done:
+    mov     al, bh
+    pop     edi esi edx ecx ebx
+    ret
+
 ;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
 hed             db 'FTP Client - KolibriOS',0
 str_change      db 'Change',0
 str_disconnect  db 'Disconnect',0
 str_copy        db 'Copy',0
-str_list        db 'LIST',0
 str_mkd         db 'MKD',0
 str_dele        db 'DELE',0
 str_rdir        db 'RDIR',0
 str_rmd         db 'RMD',0
 str_abort       db 'Cancel',0
+str_search      db 'Search',0
+str_list        db 'LIST',0
+str_null        db 0
 
 ;----------------------
 ; tree list elements
@@ -780,6 +909,9 @@ edit_new_dir edit_box 140,475+75+2,82,0xffffff,0x6a9480,0,0xAABBCC,0,99,new_dir_
 
 ; editbox for default volume
 edit_volume edit_box 140,75,105-20,0xffffff,0x6a9480,0,0xAABBCC,0,99,root_dir,mouse_dd,0
+
+; editbox for filename filter
+edit_filter edit_box 100,475+75,25,0xffffff,0x6a9480,0,0xAABBCC,0,99,filter,mouse_dd,0
  
 ; A subsidiary structure for scrolling
 align 4
@@ -993,6 +1125,7 @@ import  box_lib, \
         edit_box_draw,      'edit_box', \
         edit_box_key,       'edit_box_key', \
         edit_box_mouse,     'edit_box_mouse', \
+        edit_box_set_text,  'edit_box_set_text', \
         version_ed,         'version_ed', \
         scrollbar_ver_draw ,'scrollbar_v_draw', \
         scrollbar_ver_mouse,'scrollbar_v_mouse', \
@@ -1041,6 +1174,7 @@ import  box_lib, \
 
 
 auto_list   db 1 ; to run LIST immediately after CWD
+filter      rb 512
 root_dir    db '/rd/1'
             rb 507
 new_dir_buf rb 512
