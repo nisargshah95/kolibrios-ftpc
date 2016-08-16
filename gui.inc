@@ -334,22 +334,15 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [ted_text_add], tedit0, tedit_buffer, ecx, ebx
         stdcall [ted_draw], tedit0
         ; write to log file
-        mov     [filestruct2.subfn], 3
-        m2m     [filestruct2.offset], [logfile_offset]
-        mov     [filestruct2.size], ecx
-        mov     [filestruct2.ptr], tedit_buffer
-        mov     [filestruct2.name], log_file
-        mcall   70, filestruct2
-        test    eax, eax
-        jnz     error_fs
-        mov     eax, [logfile_offset]
-        add     eax, ecx
-        mov     [logfile_offset], eax
+        mov   eax, [esp+36]
+        call  write_to_file
+
         popad
         ret     4
 
     .set_flags:
         ret     4
+
 
 ;;================================================================================================;;
     .list: ;//////////////////////////////////////////////////////////////////////////////////////;;

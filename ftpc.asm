@@ -632,6 +632,22 @@ dword_ascii:
         pop     ecx ebx edx
         ret
 
+; eax = pointer to buffer
+; ecx = size of buffer
+write_to_file:
+        mov     [filestruct2.subfn], 3
+        m2m     [filestruct2.offset], [logfile_offset]
+        mov     [filestruct2.size], ecx
+        mov     [filestruct2.ptr], eax
+        mov     [filestruct2.name], log_file
+        mcall   70, filestruct2
+        test    eax, eax
+        jnz     error_fs
+        mov     eax, [logfile_offset]
+        add     eax, ecx
+        mov     [logfile_offset], eax
+        ret
+
 ;;================================================================================================;;
 error: ;//////////////////////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
