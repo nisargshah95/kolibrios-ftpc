@@ -518,7 +518,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
 
-        ;int3
         ; detect abort
         mcall   17
         cmp     ah, 10
@@ -542,7 +541,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
 
 remove_dir:
-    ;int3
+
     stdcall dword[tl_node_get_data], tree2
     cmp     word[eax], 'fo'
     jne     gui.still
@@ -557,6 +556,7 @@ remove_dir:
 
 
 delete_file:
+
     stdcall dword[tl_node_get_data], tree2
     cmp     word[eax], 'fi'
     jne     gui.still
@@ -772,7 +772,6 @@ filter_remote_list: ;///////////////////////////////////////////////////////////
 
     .next_node:
 
-        ; int3
         stdcall dword[tl_node_get_data], tree2
         ; check whether any nodes left
         cmp     eax, 0
@@ -809,16 +808,13 @@ filter_remote_list: ;///////////////////////////////////////////////////////////
         call    search
         pop     esi
         test    al, al
-        ; int3
 
         jnz     .get_next
         stdcall dword[tl_node_delete], tree2
-        stdcall dword[tl_draw], tree2
         jmp     @f
 
     .get_next:
         stdcall dword[tl_cur_next], tree2
-        stdcall dword[tl_draw], tree2
 
     @@:
         jmp     .next_node

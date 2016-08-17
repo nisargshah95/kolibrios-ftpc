@@ -119,7 +119,6 @@ pasv_ok:
 
 init_download_count:
 
-        ;int3
         mov     edx, 0
         ; search for 'Open' in buf_cmd
         lea     esi, [buf_cmd+3]
@@ -131,7 +130,6 @@ init_download_count:
         jne     @b
         jmp     data_loop
       @@:
-        ;int3
         ; get file size
         mov     al, '('
         mov     ecx, -1
@@ -152,18 +150,15 @@ init_download_count:
         cmp     byte[esi], ' '
         jne     @b
         mov     [file_size], eax
-        ;int3
 
 data_loop:
 
         cmp     [operation], OPERATION_STOR
         je      .stor
 
-        ;int3
         push    edx
 ; we are receiving data
         mcall   recv, [datasocket], buf_buffer2, BUFFERSIZE, 0
-        ;int3
         pop     edx ; get byte count
         add     edx, eax
         test    ebx, ebx

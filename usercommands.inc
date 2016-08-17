@@ -147,7 +147,7 @@ cmd_stor:
         call    set_filename
 
         mcall   70, filestruct
-        ;int3
+
         mov     eax, dword[folder_buf+32] ; supports file size upto 4GB
         mov     [file_size], eax
 
@@ -251,14 +251,8 @@ cmd_mkd:
 
 
 cmd_abor:
-        call    open_dataconnection
 
-        mov     [operation], OPERATION_LIST
-
-        mov     dword[buf_cmd], "ABOR"
-        mov     word[buf_cmd+4], 0x0a0d
-        mcall   send, [controlsocket], buf_cmd, 6, 0
-
+        mcall   close, [datasocket]
         jmp     wait_for_servercommand
 
 
