@@ -1,0 +1,29 @@
+FTP Client for KolibriOS [GSoC 2016] summary
+[19 August 2016]
+
+Tasks accomplished -
+1 Add proper error handling [Modification]
+2 Refactor code to decouple console code and core FTP code [Flow diagram] [Modification]
+3 Console
+3.1 Display download progress instead of dots
+4 Error handling for filesystem functions
+5 Build GUI for login screen and integrate it with FTP client
+6 Build main GUI
+6.1 boxlib treelist element for displaying local and remote files
+6.2 textedit element for displaying console messages
+6.3 boxlib progressbar element for displaying progress bar
+6.4 Core FTP functionality
+6.4.1 Buttons - LIST, DELE, RDIR, MKD, RMD, BYE (disconnect)
+6.4.2 RETR/STOR on pressing "Enter" after selecting the file from local/remote treelist
+6.4.3 Cancel downloads (button)
+6.4.4 Search for files within current remote directory (not recursive)
+7 Logging to disk (file path configurable via ftpc.ini)
+
+Known issues -
+1 Uploading large files fails
+2 Check available disk space before starting download [no efficient method found yet]
+
+Tasks remaining -
+1 Resuming downloads
+2 Searching recursively (within subdirectories of current working directory)
+3 Display informative errors on login screen GUI (wrong username, password, etc.) in addition to console (currently only a generic error message is printed)
