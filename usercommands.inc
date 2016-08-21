@@ -89,9 +89,10 @@ cmd_retr:
         mov     [filestruct.ptr], 0
 
         mcall   70, filestruct
-        cmp     eax, 0
-        jne     error_fs
-
+        test    eax, eax
+        jz      @f
+        call    error_fs
+      @@:
 ; Prepare to write to the file
 
         mov     [filestruct.subfn], 3   ; write to file
@@ -194,11 +195,11 @@ cmd_lcwd:
         mov     [filestruct2.ptr], folder_buf
         mov     [filestruct2.name], buf_cmd+5
         mcall   70, filestruct2
-        cmp     eax, 0
-        je      @f
+        test    eax, eax
+        jz      @f
         cmp     eax, 2
-        jne     error_fs
-
+        je      @f
+        call    error_fs
   @@:
         mcall   30, 1, buf_cmd+5              ; set working directory
   .print:

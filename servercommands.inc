@@ -189,13 +189,14 @@ data_loop:
         mov     [filestruct.size], eax
         push    eax
         mcall   70, filestruct
-        cmp     eax, 0
-        jne     error_fs
+        test    eax, eax
+        jz      @f
+        call    error_fs
+      @@:
         pop     eax
         add     [filestruct.offset], eax
 
         icall   eax, interface_addr, interface.progress
-
         jmp     data_loop
 
 ; storing, send all data
@@ -204,7 +205,9 @@ data_loop:
         cmp     eax, 6          ; end of file
         je      .last_call
         test    eax, eax        ; error
-        jne     error_fs
+        jz      @f
+        call    error_fs
+      @@:
         add     [filestruct.offset], ebx
         mov     esi, ebx
         mcall   send, [datasocket], buf_buffer2, , 0

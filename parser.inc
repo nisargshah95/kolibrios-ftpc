@@ -28,8 +28,8 @@ parse_args: ;///////////////////////////////////////////////////////////////////
         lea     edi, [param_user]
   @@:
         lodsb
-        cmp     al, 0
-        je      .error
+        test    al, al
+        jz      .error
         stosb
         cmp     byte [esi], ':'
         jne     @b
@@ -40,8 +40,8 @@ parse_args: ;///////////////////////////////////////////////////////////////////
         lea     edi, [param_password]
   @@:   
         lodsb
-        cmp     al, 0
-        je      .error
+        test    al, al
+        jz      .error
         stosb
         cmp     byte [esi], '@'
         jne     @b
@@ -52,8 +52,8 @@ parse_args: ;///////////////////////////////////////////////////////////////////
         mov     edi, param_server_addr
   @@:
         lodsb
-        cmp     al, 0
-        je      .error
+        test    al, al
+        jz      .error
         stosb
         cmp     byte [esi], ':'
         jne     @b
@@ -64,8 +64,8 @@ parse_args: ;///////////////////////////////////////////////////////////////////
         lea     edi, [param_port]
   @@:
         lodsb
-        cmp     al, 0
-        je      .error
+        test    al, al
+        jz      .error
         stosb
         cmp     byte [esi], '/'
         jne     @b

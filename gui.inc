@@ -4,7 +4,6 @@ fn_icon1 db 'tl_sys_16.bmp',0
 fn_icon2 db 'tl_nod_16.bmp',0
 bmp_icon dd 0
 
-
 align 4
 ;;================================================================================================;;
 gui: ;////////////////////////////////////////////////////////////////////////////////////////////;;
@@ -36,7 +35,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         mcall   48,3,sc,sizeof.system_colors
         mcall   40,0xC0000027
-        ; initialize stack?
 
         ret
 
@@ -356,9 +354,11 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [ted_text_add], tedit0, tedit_buffer, ecx, ebx
         stdcall [ted_draw], tedit0
         ; write to log file
-        mov   eax, [esp+36]
-        call  write_to_file
-
+        mov     eax, [esp+36]
+        cmp     [logfile_offset], -1 ; disabled logging?
+        je      @f
+        call    write_to_file
+      @@:
         popad
         ret     4
 
@@ -378,7 +378,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
 
-        ; int3
         push    edx
         push    eax
         ; check if any incomplete entry to be parsed
@@ -442,8 +441,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         lea     edi, [node_entry2+4]
       @@:
         movsb
-        ; TODO: page fault here
-        ; page fault use case - ftp.gnu.org -> gnu/emacs -> search "21"
         cmp     word[esi], 0x0a0d ; end of entry
         jne     @b
         mov     byte[edi], 0
@@ -601,6 +598,8 @@ fun_on_enter:
     mov     word[edi], 0x000a
     jmp     cmd_stor
 
+; Function to call when you press [Enter]
+; for treelist with remote directory listing
 align 4
 fun_on_enter2:
     stdcall dword[tl_node_get_data], tree2
@@ -621,7 +620,7 @@ fun_on_enter2:
     cmp     byte[esi], 0
     jne     .copy
     mov     word[edi], 0x000a ; extra character before 0 to compensate for
-                                    ; newline in console
+                                ; newline in console code
     cmp     word[eax], 'fo'
     je      @f
     jmp     cmd_retr
@@ -675,12 +674,12 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
   ; read 32 blocks
   .outer:
     mcall   70, filestruct
-    cmp     eax, 0
-    je      @f
+    test    eax, eax
+    jz      @f
     cmp     eax, 6 ; EOF
     je      @f
-    jmp     error_fs
-
+    call    error_fs
+    jmp     .done
   @@:
     test    ebx, ebx
     je      .done ; when no. of blocks is multiple of 32
@@ -774,8 +773,8 @@ filter_remote_list: ;///////////////////////////////////////////////////////////
 
         stdcall dword[tl_node_get_data], tree2
         ; check whether any nodes left
-        cmp     eax, 0
-        jne     @f
+        test    eax, eax
+        jnz     @f
         stdcall dword[tl_draw], tree2
         stdcall dword[edit_box_set_text], edit_filter, str_null
         je      gui.still
@@ -791,8 +790,8 @@ filter_remote_list: ;///////////////////////////////////////////////////////////
     @@:
         lodsb
         inc     ecx
-        cmp     al, 0
-        jne     @b
+        test    al, al
+        jnz     @b
 
         ; calculate size of pattern
         mov     esi, filter
@@ -800,8 +799,8 @@ filter_remote_list: ;///////////////////////////////////////////////////////////
     @@:
         lodsb
         inc     edx
-        cmp     al, 0
-        jne     @b
+        test    al, al
+        jnz     @b
 
         mov     esi, filter
 
@@ -833,7 +832,6 @@ search: ;///////////////////////////////////////////////////////////////////////
 ;< al = 0 (not found) / 1 (found)                                                                 ;;
 ;;================================================================================================;;
     
-    ; int3
     push    ebx ecx edx esi edi
     ; if length of haystack < length of needle
     cmp     ecx, edx
@@ -855,8 +853,8 @@ search: ;///////////////////////////////////////////////////////////////////////
     mov     esi, [esp+4]
 
   .inner:
-    cmp     edx, 0
-    je      .done
+    test    edx, edx
+    jz      .done
     dec     edx
 
     mov     eax, esi

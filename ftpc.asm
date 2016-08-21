@@ -172,7 +172,7 @@ start: ;////////////////////////////////////////////////////////////////////////
 ;;================================================================================================;;
 arg_handler: ;////////////////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
-;? Passes user input from console/GUI to FTP core and the other way around                        ;;
+;? Passes initial connection info from console/GUI to FTP core and the other way around           ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;> esp+4 = pointer to the argument passed to the function                                         ;;
 ;;------------------------------------------------------------------------------------------------;;
@@ -632,9 +632,17 @@ dword_ascii:
         pop     ecx ebx edx
         ret
 
-; eax = pointer to buffer
-; ecx = size of buffer
-write_to_file:
+
+;;================================================================================================;;
+write_to_file: ;//////////////////////////////////////////////////////////////////////////////////;;
+;;------------------------------------------------------------------------------------------------;;
+;? Writes input buffer to log file                                                                ;;
+;;------------------------------------------------------------------------------------------------;;
+;> eax = pointer to buffer                                                                        ;;
+;> ecx = size of buffer                                                                           ;;
+;;------------------------------------------------------------------------------------------------;;
+;< eax = status of SF 70.3                                                                        ;;
+;;================================================================================================;;
         mov     [filestruct2.subfn], 3
         m2m     [filestruct2.offset], [logfile_offset]
         mov     [filestruct2.size], ecx
@@ -642,7 +650,12 @@ write_to_file:
         mov     [filestruct2.name], log_file
         mcall   70, filestruct2
         test    eax, eax
-        jnz     error_fs
+        jz      @f
+        mov     [logfile_offset], -1 ; disable logging
+        call    error_fs
+        icall   ebx, interface_addr, interface.print, str_no_logging
+        ret
+      @@:
         mov     eax, [logfile_offset]
         add     eax, ecx
         mov     [logfile_offset], eax
@@ -714,7 +727,7 @@ error_fs:
         mov     word[fs_error_code], '  '   ; clear error code for next time
         icall   eax, interface_addr, interface.set_flags, 0x0a
 
-        jmp     wait_for_usercommand
+        ret
 
 error_heap:
         icall   eax, interface_addr, interface.set_flags, 0x0c ; print errors in red
@@ -809,6 +822,7 @@ str_ip          db 'ip', 0
 str_dir         db 'dir', 0
 str_general     db 'general', 0
 str_logfile     db 'logfile',0
+str_no_logging  db 'Error writing to log file. Logging disabled',0
 
 queued          dd 0
 mode            db 0    ; passive = 0, active = 1

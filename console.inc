@@ -99,12 +99,14 @@ console: ;//////////////////////////////////////////////////////////////////////
     @@:
         inc     ecx
         lodsb
-        cmp     al, 0
-        jne     @b
+        test    al, al
+        jnz     @b
         ; write to log file
-        mov   eax, [esp+36]
-        call  write_to_file
-
+        mov     eax, [esp+36]
+        cmp     [logfile_offset], -1
+        je      @f
+        call    write_to_file
+      @@:
         popad
         ret     4
 
@@ -117,7 +119,6 @@ console: ;//////////////////////////////////////////////////////////////////////
         jmp     data_loop
 
   .progress: ; edx = no. of bytes transferred
-  ; TODO: take LIST scenario into account
         mov     eax, edx
         mov     edi, str_bytes_done
         call    dword_ascii
