@@ -12,10 +12,12 @@ login_gui: ;////////////////////////////////////////////////////////////////////
 
   .server_addr:
         mov     [initial_login], 1
+
   .get_username:
         ; in case of error when either login_gui.server_addr or 
         ; login_gui.get_username is called, should resize window
         mcall   67, 320, 300, 390, 200 ; resize to login gui window size
+
   .redraw:
         call    .draw
         jmp     .still
@@ -26,20 +28,11 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         mcall   12, 1
         mcall   0, <320,390>, <300,200>, 0x34AABBCC, 0x805080DD, hed
 
-        push    dword edit_usr
-        call    [edit_box_draw]
-
-        push    dword edit_pass
-        call    [edit_box_draw]
-
-        push    dword edit_server
-        call    [edit_box_draw]
-
-        push    dword edit_port
-        call    [edit_box_draw]
-
-        push    dword edit_path
-        call    [edit_box_draw]
+        stdcall [edit_box_draw], edit_usr
+        stdcall [edit_box_draw], edit_pass
+        stdcall [edit_box_draw], edit_server
+        stdcall [edit_box_draw], edit_port
+        stdcall [edit_box_draw], edit_path
 
         ; draw "connect" button
         mcall   8, <162,65>, <140,25>, 2, 0x007887a6
@@ -67,20 +60,11 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         dec      eax
         jz       .button
 
-        push    dword edit_usr
-        call    [edit_box_mouse]
-
-        push    dword edit_pass
-        call    [edit_box_mouse]
-
-        push    dword edit_server
-        call    [edit_box_mouse]
-
-        push    dword edit_port
-        call    [edit_box_mouse]
-
-        push    dword edit_path
-        call    [edit_box_mouse]
+        stdcall [edit_box_mouse], edit_usr
+        stdcall [edit_box_mouse], edit_pass
+        stdcall [edit_box_mouse], edit_server
+        stdcall [edit_box_mouse], edit_port
+        stdcall [edit_box_mouse], edit_path
 
         jmp     .still
 
@@ -98,20 +82,11 @@ login_gui: ;////////////////////////////////////////////////////////////////////
   .key:
         mcall   2
 
-        push    dword edit_usr
-        call    [edit_box_key]
-
-        push    dword edit_pass
-        call    [edit_box_key]
-
-        push    dword edit_server
-        call    [edit_box_key]
-
-        push    dword edit_port
-        call    [edit_box_key]
-
-        push    dword edit_path
-        call    [edit_box_key]
+        stdcall [edit_box_key], edit_usr
+        stdcall [edit_box_key], edit_pass
+        stdcall [edit_box_key], edit_server
+        stdcall [edit_box_key], edit_port
+        stdcall [edit_box_key], edit_path
 
         jmp     .still
 

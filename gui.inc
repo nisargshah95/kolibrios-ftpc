@@ -1,7 +1,7 @@
-@use_library_mem mem.Alloc,mem.Free,mem.ReAlloc,dll.Load
+@use_library_mem mem.Alloc, mem.Free, mem.ReAlloc, dll.Load
  
-fn_icon1 db 'tl_sys_16.bmp',0
-fn_icon2 db 'tl_nod_16.bmp',0
+fn_icon1 db 'tl_sys_16.bmp', 0
+fn_icon2 db 'tl_nod_16.bmp', 0
 bmp_icon dd 0
 
 align 4
@@ -25,17 +25,14 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     dd .progress
     dd .error
 
-
     .init:
-
         ; load libraries
         stdcall dll.Load, @IMPORT_BOXLIB
         test    eax, eax
         jnz     .exit
 
-        mcall   48,3,sc,sizeof.system_colors
-        mcall   40,0xC0000027
-
+        mcall   48, 3, sc, sizeof.system_colors
+        mcall   40, 0xC0000027 ; set event mask
         ret
 
     .server_addr:
@@ -45,10 +42,11 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     .get_username:
         jmp     login_gui.get_username
 
+
 ;;================================================================================================;;
     .main: ;//////////////////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
-;? Initialize tree list and textedit elements                                                     ;;
+;? Initialize tree list, editbox and textedit elements                                            ;;
 ;;------------------------------------------------------------------------------------------------;;
 ;> none                                                                                           ;;
 ;;------------------------------------------------------------------------------------------------;;
@@ -59,56 +57,53 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mov     dword[tedit0.rec.width], 9
         mov     dword[tedit0.rec.height], 16
 
-        ; mov     dword[root_dir], '/rd/'
-        ; mov     word[root_dir+4], 0x0031
+        stdcall dword[edit_box_set_text], edit_volume, root_dir
+
         ; initialize tree list elements
         stdcall dword[tl_data_init], tree1
         stdcall dword[tl_data_init], tree2
 
-    ; read *.bmp file system icons
-        copy_path fn_icon1,path,filestruct.name,0
+        ; read *.bmp file system icons
+        copy_path fn_icon1,path,filestruct.name, 0
      
-        mov     ecx,3*256*13
-        stdcall mem.Alloc,ecx
-        mov     [bmp_icon],eax
+        mov     ecx, 3*256*13
+        stdcall mem.Alloc, ecx
+        mov     [bmp_icon], eax
      
         mov     [filestruct.ptr], eax
         mov     [filestruct.subfn], 0
         mov     [filestruct.offset], 54
         mov     [filestruct.size], ecx
-        mcall   70,filestruct
-        cmp     ebx,0
+        mcall   70, filestruct
+        cmp     ebx, 0
         jl      @f
-        m2m     dword[tree1.data_img_sys],dword[bmp_icon]
-        m2m     dword[tree2.data_img_sys],dword[bmp_icon]
-        @@:
+        m2m     dword[tree1.data_img_sys], dword[bmp_icon]
+        m2m     dword[tree2.data_img_sys], dword[bmp_icon]
+
+      @@:
+        ; read * .bmp file with the icon of nodes
+        copy_path fn_icon2, path, filestruct.name, 0
      
-    ; read * .bmp file with the icon of nodes
-        copy_path fn_icon2,path,filestruct.name,0
-     
-        mov     ecx,3*256*13
-        stdcall mem.Alloc,ecx
-        mov     [bmp_icon],eax
+        mov     ecx, 3*256*13
+        stdcall mem.Alloc, ecx
+        mov     [bmp_icon], eax
      
         mov     [filestruct.ptr], eax
         ;mov    [filestruct.subfn], 0
         ;mov    [filestruct.offset], 54
         mov     [filestruct.size], ecx
-        mcall   70,filestruct
-        cmp     ebx,0
+        mcall   70, filestruct
+        cmp     ebx, 0
         jl      @f
-        m2m     dword[tree1.data_img],dword[bmp_icon]
-        m2m     dword[tree2.data_img],dword[bmp_icon]
-        @@:
-
+        m2m     dword[tree1.data_img], dword[bmp_icon]
+        m2m     dword[tree2.data_img], dword[bmp_icon]
+    
+      @@:
         mcall   67, 35, 20, 830, 555 ; resize to main gui window's coordinates
         call    .draw
-
         ; create initial tree list for root_dir
         call    populate_local_tree_list
-
         jmp     arg_handler.connect
-
 
     .get_cmd:
         dec     [auto_list]
@@ -121,7 +116,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
     align 4
     .still:
-
         mcall   10
 
         dec     eax
@@ -135,10 +129,8 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         jmp     .still
 
-    ; TODO wait for key press / time
     .error:
         jmp     login_gui.error
-        ;jmp     .server_addr
 
     .exit:
     ;   stdcall mem.Free,[bmp_icon]
@@ -149,21 +141,20 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
     align 4
     .draw:
-
-        mcall   12,1
+        mcall   12, 1
         ; main window
-        mcall   0,<35,830>,<20,555>,0x33AABBCC,0x805080DD,hed
+        mcall   0, <35,830>, <20,555>, 0x33AABBCC, 0x805080DD, hed
 
         ;-------------------------
         ; textedit components
         ;-------------------------
-        mcall   9,procinfo,-1
-        mov     edi,tedit0 ;
+        mcall   9, procinfo, -1
+        mov     edi, tedit0
         call    EvSize
 
         movzx   ebx,word[procinfo.client_box.width]
         inc     bx
-        mcall   13,,ted_wnd_t ;
+        mcall   13, , ted_wnd_t
         stdcall [ted_draw], tedit0
 
         ; draw "disconnect" button
@@ -193,7 +184,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         ; draw "RMD" button
         mcall   8, <475+75+44+44+44,40>, <50,25>, 9, 0x007887A6
         ; string "RMD"
-        mcall   4, <475+75+5+44+44+44,50+5>, 0xb0ffffff, str_rmd
+        mcall   4, <475+75+44+44+44+5,50+5>, 0xb0ffffff, str_rmd
         ; draw "cancel" button
         mcall   8, <575,55>, <308,25>, 10, 0x007887A6
         ; string "Cancel"
@@ -213,60 +204,49 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall dword[tl_draw], tree1
         stdcall dword[tl_draw], tree2
      
-        mov     dword[wScr.all_redraw],1
-        stdcall [scrollbar_ver_draw], dword wScr
+        mov     dword[wScr.all_redraw], 1
+        stdcall [scrollbar_ver_draw], wScr
 
         mov     dword[wScr2.all_redraw],1
-        stdcall [scrollbar_ver_draw], dword wScr2
+        stdcall [scrollbar_ver_draw], wScr2
 
-        push    dword edit_new_dir
-        call    [edit_box_draw]
-
-        push    dword edit_volume
-        call    [edit_box_draw]
-
-        push    dword edit_filter
-        call    [edit_box_draw]
+        stdcall [edit_box_draw], edit_new_dir
+        stdcall [edit_box_draw], edit_volume
+        stdcall [edit_box_draw], edit_filter
 
         ; progress bar
-        push    dword pb
-        call    [progressbar_draw]
+        stdcall [progressbar_draw], pb
 
         mcall   12,2
-
-       ret
+        ret
 
     align 16
     .mouse:
+        mcall   37, 1
+        cmp     word[tedit0.wnd.top], ax
+        jg      .no_edit
 
-        mcall   37,1
-        cmp     word[tedit0.wnd.top],ax
+        shr     eax, 16
+        cmp     word[tedit0.wnd.left], ax
         jg      .no_edit
-        shr     eax,16
-        cmp     word[tedit0.wnd.left],ax
-        jg      .no_edit
-        mcall   37,3
-        bt      eax,24 ;
+
+        mcall   37, 3
+        bt      eax, 24
         jnc     @f
+
         stdcall [ted_but_select_word], tedit0
         jmp     .still
-        @@:
+
+      @@:
         stdcall [ted_mouse], tedit0
         jmp     .still
-      .no_edit:
 
+      .no_edit:
         stdcall [tl_mouse], tree1
         stdcall [tl_mouse], tree2
-
-        push    dword edit_new_dir
-        call    [edit_box_mouse]
-
-        push    dword edit_volume
-        call    [edit_box_mouse]
-
-        push    dword edit_filter
-        call    [edit_box_mouse]
-
+        stdcall [edit_box_mouse], edit_new_dir
+        stdcall [edit_box_mouse], edit_volume
+        stdcall [edit_box_mouse], edit_filter
         jmp     .still
 
     align 16
@@ -274,16 +254,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   2
         stdcall [tl_key], tree1
         stdcall [tl_key], tree2
-
-        push    dword edit_new_dir
-        call    [edit_box_key]
-
-        push    dword edit_volume
-        call    [edit_box_key]
-
-        push    dword edit_filter
-        call    [edit_box_key]
-
+        stdcall [edit_box_key], edit_new_dir
+        stdcall [edit_box_key], edit_volume
+        stdcall [edit_box_key], edit_filter
         jmp     .still
 
     align 16
@@ -298,8 +271,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
       @@:
         cmp     ah, 4
         jne     @f
-        ;stdcall [ted_but_copy], tedit0
-        
+        stdcall [ted_but_copy], tedit0
         jmp     .still
 
       @@:
@@ -327,8 +299,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jne     @f
         call    populate_local_tree_list
 
-    @@:
-
+      @@:
         cmp     ah, 12
         call    .clear_remote_tree
         je      cmd_list
@@ -340,12 +311,12 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
     .print:
         pushad
-
         mov     ebx, ted_opt_ed_change_time + ted_opt_ed_move_cursor
         mov     ecx, 2 ; 0a0d
         mov     esi, [esp+36]
         mov     word[tedit_buffer], 0x0a0d
         lea     edi, [tedit_buffer+2]
+
       @@:
         movsb
         inc     ecx
@@ -358,6 +329,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         cmp     [logfile_offset], -1 ; disabled logging?
         je      @f
         call    write_to_file
+
       @@:
         popad
         ret     4
@@ -390,6 +362,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         ; copy rest of the incomplete entry to remote_list_buf
         mov     esi, buf_buffer2
         dec     edi
+
       @@:
         movsb
         cmp     word[esi-2], 0x0a0d
@@ -402,9 +375,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         jmp     .start_parsing
 
       .no_backlog:
-
         mov     ecx, eax    ; ecx = number of bytes remaining to parse in buf_buffer2
         mov     edi, buf_buffer2
+
       .start_parsing:
         ; find pointer to name
         cmp     byte[edi], 'd' ; file is a directory
@@ -413,11 +386,13 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         je      @f
         mov     word[node_entry2], 'fi'
         jmp     .parse
+
       @@:
         mov     word[node_entry2], 'fo'
 
       .parse:
         mov     edx, 8
+
       @@:
         mov     al, ' '
         mov     ecx, [esp]
@@ -449,8 +424,8 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         cmp     word[node_entry2], 'fi'
         jne     @f
         stdcall dword[tl_node_add], tree2, 0, node_entry2
-
         jmp     .added_remote_node
+
       @@:
         stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
 
@@ -465,6 +440,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         add     ecx, eax
         sub     ecx, ebx
         jmp     .start_parsing
+
       @@:
         ; any more entries to parse?
         lea     edi, [esi+2] ; skip 0a0d
@@ -498,7 +474,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         ; clear tree list and add ".." node before executing "LIST"
       .clear_remote_tree:
-
         stdcall dword[tl_info_clear], tree2
         mov     dword[node_entry2+4], 0x2E2E
         stdcall dword[tl_node_add], tree2, 0x10000, node_entry2
@@ -529,6 +504,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         cmp     eax, 100
         jle     @f
         mov     eax, 100
+
       @@:
         mov     dword[pb], eax
         push    pb
@@ -568,6 +544,7 @@ delete_file:
 
 
 create_remote_dir:
+
     lea     edi, [buf_cmd+4]
     mov     esi, new_dir_buf
   @@:
@@ -581,6 +558,7 @@ create_remote_dir:
 ; Function to call when you press [Enter]
 align 4
 fun_on_enter:
+
     stdcall dword[tl_node_get_data], tree1
     cmp     word[eax], 'fi'
     je      @f
@@ -588,6 +566,7 @@ fun_on_enter:
     call    populate_local_tree_list.read_new_dir
     ;stdcall dword[tl_draw], tree1
     ret
+
   @@:
     lea     esi, [eax+4]
     lea     edi, [buf_cmd+5]
@@ -598,23 +577,28 @@ fun_on_enter:
     mov     word[edi], 0x000a
     jmp     cmd_stor
 
+
 ; Function to call when you press [Enter]
 ; for treelist with remote directory listing
 align 4
 fun_on_enter2:
+
     stdcall dword[tl_node_get_data], tree2
     lea     esi, [eax+4]
     cmp     dword[esi], 0x2E2E
     jne     @f
     mov     [auto_list], 1
     jmp     cmd_cdup
+
   @@:
     cmp     word[eax], 'fo'
     je      @f
     lea     edi, [buf_cmd+5]
     jmp     .copy
+
   @@:
     lea     edi, [buf_cmd+4]
+
   .copy:
     movsb
     cmp     byte[esi], 0
@@ -624,6 +608,7 @@ fun_on_enter2:
     cmp     word[eax], 'fo'
     je      @f
     jmp     cmd_retr
+
   @@:
     stdcall dword[tl_info_clear], tree2
     mov     [auto_list], 1
@@ -646,7 +631,6 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
     mov     ecx, root_dir
 
   .read_new_dir: ; ecx = pointer to folder name
-
     ; parse ".."
     cmp     word[ecx], '..'
     jne     @f
@@ -690,7 +674,6 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
   .inner:   ; ebx = total number of BDFEs
             ; ecx = number of BDFEs remaining
             ; edx = pointer to file's name in BDFE
-
     ; ignore "." entry
     cmp     word[edx], 0x002E
     je      .added
@@ -709,6 +692,7 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
     mov     word[node_entry], 'fo'
     stdcall dword[tl_node_add], tree1, 0x10000, node_entry
     jmp     .added
+
   @@:
     ; add a file to tree
     mov     word[node_entry], 'fi'
@@ -731,26 +715,26 @@ MIN_M_WND_H equ 500 ;
 align 4
 EvSize:
     pushad
-    mov ebx,ted_scr_h
-    mov esi,ted_scr_w
+    mov     ebx, ted_scr_h
+    mov     esi, ted_scr_w
 
-    m2m ted_wnd_w,[procinfo.client_box.width] ;
-    mov eax,ted_wnd_l
-    sub ted_wnd_w,eax ;
-    sub ted_wnd_w,70
-    movzx eax,word[esi+sb_offs_size_x]
-    sub ted_wnd_w,eax ;
+    m2m     ted_wnd_w, [procinfo.client_box.width]
+    mov     eax, ted_wnd_l
+    sub     ted_wnd_w, eax
+    sub     ted_wnd_w, 70
+    movzx   eax, word[esi+sb_offs_size_x]
+    sub     ted_wnd_w, eax
 
-    ;m2m ted_wnd_h,[procinfo.client_box.height] ;
-    ;cmp ted_wnd_h,MIN_M_WND_H
-    ;jg @f
-    mov ted_wnd_h,MIN_M_WND_H
+    ;m2m    ted_wnd_h,[procinfo.client_box.height] ;
+    ;cmp    ted_wnd_h,MIN_M_WND_H
+    ;jg     @f
+    mov     ted_wnd_h, MIN_M_WND_H
     ;@@:
 
-    movzx eax,word[ebx+sb_offs_size_y]
-    sub ted_wnd_h,eax         ;
-    mov eax,ted_wnd_t
-    sub ted_wnd_h,eax         ;
+    movzx   eax, word[ebx+sb_offs_size_y]
+    sub     ted_wnd_h, eax
+    mov     eax, ted_wnd_t
+    sub     ted_wnd_h, eax
 
     stdcall [ted_init_scroll_bars], tedit0,2
 
@@ -770,7 +754,6 @@ filter_remote_list: ;///////////////////////////////////////////////////////////
         stdcall dword[tl_cur_beg], tree2
 
     .next_node:
-
         stdcall dword[tl_node_get_data], tree2
         ; check whether any nodes left
         test    eax, eax

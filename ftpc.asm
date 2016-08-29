@@ -44,18 +44,18 @@ use32
 include 'macros.inc'
 macro ijmp reg, addr, method
 {   
-    mov     reg, [addr]
-    add     reg, [method]
-    jmp     dword[reg]
+    mov  reg, [addr]
+    add  reg, [method]
+    jmp  dword[reg]
 }
 macro icall reg, addr, method, [arg]
 {  
-    mov     reg, [addr]
-    add     reg, [method]
+    mov  reg, [addr]
+    add  reg, [method]
     if ~ arg eq
       pushd arg
     end if
-    call    dword[reg]
+    call dword[reg]
 }
 
 purge mov,add,sub
@@ -68,11 +68,11 @@ include 'box_lib.mac'
 include 'load_lib.mac'
 
 include 'console.inc'
+include 'gui.inc'
 include 'login_gui.inc'
 include 'usercommands.inc'
 include 'servercommands.inc'
 include 'parser.inc'
-include 'gui.inc'
 
 ; TODO: Add Pasta support to FTPC
 

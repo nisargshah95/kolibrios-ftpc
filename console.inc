@@ -53,13 +53,13 @@ console: ;//////////////////////////////////////////////////////////////////////
         invoke  con_write_asciiz, str_port
         invoke  con_gets, param_port, 256
 
-; read username
+  ; read username
   .get_username:
         invoke  con_set_flags, 0x0a
         invoke  con_write_asciiz, str_user
         invoke  con_gets, param_user, 256
 
-; read password
+  ; read password
   .get_pass:
         invoke  con_write_asciiz, str_pass
         invoke  con_set_flags, 0x00             ; black text on black background for password
@@ -70,7 +70,7 @@ console: ;//////////////////////////////////////////////////////////////////////
         jne     arg_handler.copy_user
         mov     [initial_login], 0
 
-; get initial path
+  ; get initial path
   .get_path:
         invoke  con_write_asciiz, str_path
         invoke  con_gets, param_path, 256
@@ -79,12 +79,12 @@ console: ;//////////////////////////////////////////////////////////////////////
         jmp     arg_handler.connect
 
   .get_cmd:
-; write prompt
+        ; write prompt
         invoke  con_write_asciiz, str_prompt
-; read string
+        ; read string
         invoke  con_gets, buf_cmd, 256
 
-; print a newline and reset the color back to grey
+        ; print a newline and reset the color back to grey
         invoke  con_write_asciiz, str_newline
         invoke  con_set_flags, 0x07
 
@@ -106,6 +106,7 @@ console: ;//////////////////////////////////////////////////////////////////////
         cmp     [logfile_offset], -1
         je      @f
         call    write_to_file
+
       @@:
         popad
         ret     4

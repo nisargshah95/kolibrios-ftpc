@@ -92,6 +92,7 @@ cmd_retr:
         test    eax, eax
         jz      @f
         call    error_fs
+        jmp     close_datacon
       @@:
 ; Prepare to write to the file
 
@@ -185,6 +186,7 @@ cmd_lcwd:
         test    al, al
         je      .check
         loop    .loop
+
   .check:
         mov     byte[esi-1], 0
 
@@ -200,11 +202,13 @@ cmd_lcwd:
         cmp     eax, 2
         je      @f
         call    error_fs
+        jmp     wait_for_usercommand
+
   @@:
         mcall   30, 1, buf_cmd+5              ; set working directory
+
   .print:
         mcall   30, 2, buf_cmd, 256           ; and read it again
-
         icall   eax, interface_addr, interface.print, str_lcwd, buf_cmd, str_newline
 
         jmp     wait_for_usercommand

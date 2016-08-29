@@ -117,6 +117,7 @@ pasv_ok:
         jmp     wait_for_servercommand
 
 
+; get file size, initialize count for number of bytes downloaded
 init_download_count:
 
         mov     edx, 0
@@ -129,6 +130,7 @@ init_download_count:
         cmp     byte[esi], 0
         jne     @b
         jmp     data_loop
+
       @@:
         ; get file size
         mov     al, '('
@@ -192,6 +194,7 @@ data_loop:
         test    eax, eax
         jz      @f
         call    error_fs
+        jmp     close_datacon
       @@:
         pop     eax
         add     [filestruct.offset], eax
@@ -207,6 +210,7 @@ data_loop:
         test    eax, eax        ; error
         jz      @f
         call    error_fs
+        jmp     close_datacon
       @@:
         add     [filestruct.offset], ebx
         mov     esi, ebx
