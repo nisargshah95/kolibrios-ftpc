@@ -1,3 +1,7 @@
+SYS_COL  = 0xe6e6e6
+BT_COL   = 0xcccccc
+STR_COL  = 0x595959 ;0x000000
+
 ;;================================================================================================;;
 login_gui: ;//////////////////////////////////////////////////////////////////////////////////////;;
 ;;------------------------------------------------------------------------------------------------;;
@@ -26,7 +30,7 @@ login_gui: ;////////////////////////////////////////////////////////////////////
   align 4
   .draw:
         mcall   12, 1
-        mcall   0, <320,390>, <300,200>, 0x34AABBCC, 0x805080DD, hed
+        mcall   0, <320,390>, <300,200>, 0x34000000+SYS_COL, 0x805080DD, hed
 
         stdcall [edit_box_draw], edit_usr
         stdcall [edit_box_draw], edit_pass
@@ -35,7 +39,7 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         stdcall [edit_box_draw], edit_path
 
         ; draw "connect" button
-        mcall   8, <162,65>, <140,25>, 2, 0x007887a6
+        mcall   8, <162,65>, <140,25>, 2, BT_COL
 
         ; draw strings
         mcall   4, <3,5>, 0xb0000000, gui_str_usr
@@ -43,7 +47,7 @@ login_gui: ;////////////////////////////////////////////////////////////////////
         mcall   4, <3,45>, 0xb0000000, gui_str_server
         mcall   4, <3,65>, 0xb0000000, gui_str_port
         mcall   4, <3,85>, 0xb0000000, gui_str_path
-        mcall   4, <167,145>, 0xb0ffffff, gui_str_connect
+        mcall   4, <167,145>, 0xb0000000+STR_COL, gui_str_connect
         mcall   4, <3,115>, 0xb0ff0000, [str_error_addr]
         mov     [str_error_addr], gui_str_null ; reset error string address
 

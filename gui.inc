@@ -4,6 +4,16 @@ fn_icon1 db 'tl_sys_16.bmp', 0
 fn_icon2 db 'tl_nod_16.bmp', 0
 bmp_icon dd 0
 
+TLIST_SZ = 325+16 ;=341. 16 is x-size of scroll bar
+TLIST1_X = 50
+TLIST2_X = 409
+BT_SZ_X  = 40
+SYS_COL  = 0xe6e6e6
+BT_COL   = 0xcccccc
+STR_COL  = 0x595959 ;0x000000
+
+; TODO: automatic resizing of GUI elements on window resizing
+
 align 4
 ;;================================================================================================;;
 gui: ;////////////////////////////////////////////////////////////////////////////////////////////;;
@@ -143,7 +153,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     .draw:
         mcall   12, 1
         ; main window
-        mcall   0, <35,830>, <20,555>, 0x33AABBCC, 0x805080DD, hed
+        mcall   0, <35,830>, <20,555>, 0x34000000+SYS_COL, 0x805080DD, hed
 
         ;-------------------------
         ; textedit components
@@ -158,45 +168,48 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall [ted_draw], tedit0
 
         ; draw "disconnect" button
-        mcall   8, <50,85>, <25,25>, 3, 0x007887A6
+        mcall   8, <50,85>, <25,25>, 3, BT_COL
         ; string "disconnect"
-        mcall   4, <50+5,25+5>, 0xb0ffffff, str_disconnect
+        mcall   4, <50+5,25+5>, 0xb0000000+STR_COL, str_disconnect
         ; draw "Copy" button
-        mcall   8, <50,40>, <326,25>, 4, 0x007887A6
+        mcall   8, <50,40>, <326,25>, 4, BT_COL
         ; string "copy"
-        mcall   4, <50+5,326+5>, 0xb0ffffff, str_copy
+        mcall   4, <50+5,326+5>, 0xb0000000+STR_COL, str_copy
         ; draw "Search" button
-        mcall   8, <475+75+90+15,55>, <20,25>, 5, 0x007887A6
+        mcall   8, <TLIST2_X+TLIST_SZ-55,55>, <20,25>, 5, BT_COL
         ; string "Search"
-        mcall   4, <475+75+90+15+5,20+5>, 0xb0ffffff, str_search
-        ; draw "mkd" button
-        mcall   8, <475+75+45+100,35>, <80,20>, 6, 0x007887A6
-        ; string "mkd"
-        mcall   4, <475+75+45+100+5,80+5>, 0xb0ffffff, str_mkd
-        ; draw "DELE" button
-        mcall   8, <475+75+44,40>, <50,25>, 7, 0x007887A6
-        ; string "DELE"
-        mcall   4, <475+75+5+44,50+5>, 0xb0ffffff, str_dele
-        ; draw "RDIR" button
-        mcall   8, <475+75+44+44,40>, <50,25>, 8, 0x007887A6
-        ; string "RDIR"
-        mcall   4, <475+75+5+44+44,50+5>, 0xb0ffffff, str_rdir
-        ; draw "RMD" button
-        mcall   8, <475+75+44+44+44,40>, <50,25>, 9, 0x007887A6
-        ; string "RMD"
-        mcall   4, <475+75+44+44+44+5,50+5>, 0xb0ffffff, str_rmd
-        ; draw "cancel" button
-        mcall   8, <575,55>, <308,25>, 10, 0x007887A6
-        ; string "Cancel"
-        mcall   4, <575+5,308+5>, 0xb0ffffff, str_abort
-        ; draw "change volume" button
-        mcall   8, <220,55>, <100-20,22>, 11, 0x007887A6
-        ; string "Change"
-        mcall   4, <220+5,100-20+5>, 0xb0ffffff, str_change
+        mcall   4, <TLIST2_X+TLIST_SZ-55+5,20+5>, 0xb0000000+STR_COL, str_search
+
         ; draw "LIST" button
-        mcall   8, <475+75,40>, <50,25>, 12, 0x007887A6
+        mcall   8, <TLIST2_X+TLIST_SZ-4*BT_SZ_X-15,BT_SZ_X>, <50,25>, 12, BT_COL
         ; string "LIST"
-        mcall   4, <475+75+5,50+5>, 0xb0ffffff, str_list
+        mcall   4, <TLIST2_X+TLIST_SZ-4*BT_SZ_X-15+5,50+5>, 0xb0000000+STR_COL, str_list
+        ; draw "DELE" button
+        mcall   8, <TLIST2_X+TLIST_SZ-3*BT_SZ_X-10,BT_SZ_X>, <50,25>, 7, BT_COL
+        ; string "DELE"
+        mcall   4, <TLIST2_X+TLIST_SZ-3*BT_SZ_X-10+5,50+5>, 0xb0000000+STR_COL, str_dele
+        ; draw "RDIR" button
+        mcall   8, <TLIST2_X+TLIST_SZ-2*BT_SZ_X-5,BT_SZ_X>, <50,25>, 8, BT_COL
+        ; string "RDIR"
+        mcall   4, <TLIST2_X+TLIST_SZ-2*BT_SZ_X-5+5,50+5>, 0xb0000000+STR_COL, str_rdir
+        ; draw "RMD" button
+        mcall   8, <TLIST2_X+TLIST_SZ-BT_SZ_X,BT_SZ_X>, <50,25>, 9, BT_COL
+        ; string "RMD"
+        mcall   4, <TLIST2_X+TLIST_SZ-BT_SZ_X+5,50+5>, 0xb0000000+STR_COL, str_rmd
+
+        ; draw "mkd" button
+        mcall   8, <TLIST2_X+TLIST_SZ-BT_SZ_X,BT_SZ_X>, <80,20>, 6, BT_COL
+        ; string "mkd"
+        mcall   4, <TLIST2_X+TLIST_SZ-BT_SZ_X+5,80+5>, 0xb0000000+STR_COL, str_mkd
+        
+        ; draw "cancel" button
+        mcall   8, <555,55>, <308,25>, 10, BT_COL
+        ; string "Cancel"
+        mcall   4, <555+5,308+5>, 0xb0000000+STR_COL, str_abort
+        ; draw "change volume" button
+        mcall   8, <TLIST1_X+TLIST_SZ-55,55>, <100-20,22>, 11, BT_COL
+        ; string "Change"
+        mcall   4, <TLIST1_X+TLIST_SZ-55+5,100-20+5>, 0xb0000000+STR_COL, str_change
 
         ;--------------------------
         ; tree list components
@@ -210,9 +223,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mov     dword[wScr2.all_redraw],1
         stdcall [scrollbar_ver_draw], wScr2
 
-        stdcall [edit_box_draw], edit_new_dir
+        stdcall [edit_box_draw], edit_mkd
         stdcall [edit_box_draw], edit_volume
-        stdcall [edit_box_draw], edit_filter
+        stdcall [edit_box_draw], edit_search
 
         ; progress bar
         stdcall [progressbar_draw], pb
@@ -244,9 +257,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
       .no_edit:
         stdcall [tl_mouse], tree1
         stdcall [tl_mouse], tree2
-        stdcall [edit_box_mouse], edit_new_dir
+        stdcall [edit_box_mouse], edit_mkd
         stdcall [edit_box_mouse], edit_volume
-        stdcall [edit_box_mouse], edit_filter
+        stdcall [edit_box_mouse], edit_search
         jmp     .still
 
     align 16
@@ -254,9 +267,9 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   2
         stdcall [tl_key], tree1
         stdcall [tl_key], tree2
-        stdcall [edit_box_key], edit_new_dir
+        stdcall [edit_box_key], edit_mkd
         stdcall [edit_box_key], edit_volume
-        stdcall [edit_box_key], edit_filter
+        stdcall [edit_box_key], edit_search
         jmp     .still
 
     align 16
@@ -301,9 +314,11 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
       @@:
         cmp     ah, 12
+        jne     @f
         call    .clear_remote_tree
         je      cmd_list
 
+      @@:
         cmp     ah, 1
         je      .exit
       
@@ -638,7 +653,7 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
     jne     @f
 
     ; removes last file name from filestruct.name
-    mcall   30,2,filestruct.name,1024 ; get absolute path for cwd
+    mcall   30, 2, filestruct.name,1024 ; get absolute path for cwd
     lea     edi, [filestruct.name+eax] ; edi = pointer to the tail of file name
     mov     al, '/'
     mov     ecx, -1
@@ -649,8 +664,8 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
     mov     ecx, filestruct.name
 
   @@:
-    mcall   30,1, ; set cwd
-    mcall   30,2,filestruct.name,1024 ; get absolute path for cwd
+    mcall   30, 1, ; set cwd
+    mcall   30, 2, filestruct.name, 1024 ; get absolute path for cwd
     ; clear all nodes in tree list
     stdcall dword[tl_info_clear], tree1
     mov     [filestruct.offset], 0
@@ -658,6 +673,7 @@ populate_local_tree_list: ;/////////////////////////////////////////////////////
   ; read 32 blocks
   .outer:
     mcall   70, filestruct
+    ;int3
     test    eax, eax
     jz      @f
     cmp     eax, 6 ; EOF
@@ -759,7 +775,7 @@ filter_remote_list: ;///////////////////////////////////////////////////////////
         test    eax, eax
         jnz     @f
         stdcall dword[tl_draw], tree2
-        stdcall dword[edit_box_set_text], edit_filter, str_null
+        stdcall dword[edit_box_set_text], edit_search, str_null
         je      gui.still
 
     @@:
@@ -875,20 +891,25 @@ str_null        db 0
 ;----------------------
 ; tree list elements
 ;----------------------
-tree1 tree_list 64,500,tl_list_box_mode,16,16, 0x8080ff,0x0000ff,0xffffff,\
-    75,105,200-16,185, 14,4,0, el_focus, wScr,fun_on_enter
+tree1 tree_list 64, 500, tl_list_box_mode, 16, 16, \
+    0xffffff, BT_COL, 0x000000, TLIST1_X, 105, TLIST_SZ-16, 185, 14, 4,\
+    0, el_focus, wScr, fun_on_enter
 
-tree2 tree_list 64,500,tl_list_box_mode,16,16, 0x8080ff,0x0000ff,0xffffff,\
-    475+75,105,200-16,185, 14,4,0, el_focus, wScr2,fun_on_enter2
+tree2 tree_list 64, 500, tl_list_box_mode, 16, 16, \
+    0xffffff, BT_COL, 0x000000, TLIST2_X, 105, TLIST_SZ-16, 185, 14, 4, \
+    0, el_focus, wScr2, fun_on_enter2
 
 ; editbox for mkd
-edit_new_dir edit_box 140,475+75+2,82,0xffffff,0x6a9480,0,0xAABBCC,0,99,new_dir_buf,mouse_dd,0
+edit_mkd edit_box TLIST_SZ-45, TLIST2_X, 82, 0xffffff, 0x6a9480, 0, \
+    0xAABBCC, 0, 99, new_dir_buf, mouse_dd, 0
 
 ; editbox for default volume
-edit_volume edit_box 140,75,105-20,0xffffff,0x6a9480,0,0xAABBCC,0,99,root_dir,mouse_dd,0
+edit_volume edit_box TLIST_SZ-60, TLIST1_X, 105-20, 0xffffff, 0x6a9480, 0, \
+    0xAABBCC, 0, 99, root_dir, mouse_dd, 0
 
-; editbox for filename filter
-edit_filter edit_box 100,475+75,25,0xffffff,0x6a9480,0,0xAABBCC,0,99,filter,mouse_dd,0
+; editbox for search
+edit_search edit_box TLIST_SZ-60, TLIST2_X, 25, 0xffffff, 0x6a9480, 0, \
+    0xAABBCC, 0, 99, filter,mouse_dd, 0
  
 ; A subsidiary structure for scrolling
 align 4
@@ -981,13 +1002,13 @@ tedit0:
     .max_chars dd 4096 ;+86
     .count_colors_text dd 1 ;+90
     .count_key_words   dd 0 ;+94
-    .color_cursor      dd 0xAABBCC ;+98
-    .color_wnd_capt    dd 0x0080c0 ;+102
-    .color_wnd_work    dd      0x0 ;+106
-    .color_wnd_bord    dd 0xffffff ;+110
+    .color_cursor      dd SYS_COL  ;+98
+    .color_wnd_capt    dd BT_COL   ;+102
+    .color_wnd_work    dd 0xffffff ;+106
+    .color_wnd_bord    dd 0x737373 ;+110
     .color_select      dd 0x0000ff ;+114
     .color_cur_text    dd 0xffff00 ;+118
-    .color_wnd_text    dd 0xffffff ;+122
+    .color_wnd_text    dd 0x000000 ;+122
     .syntax_file       dd 0 ;+126
     .syntax_file_size  dd 500 ;+130
     .text_colors       dd 0 ;+134
@@ -1079,16 +1100,16 @@ scrol_h1:
 struc pb
 {
     dd 0  ; PB_VALUE          equ +0
-    dd 270; PB_LEFT           equ +4
+    dd (TLIST2_X+TLIST1_X+TLIST_SZ)/2-150 ; PB_LEFT equ +4. 150 = PB_WIDTH/2
     dd 315; PB_TOP            equ +8
     dd 300; PB_WIDTH          equ +12
     dd 15 ; PB_HEIGHT         equ +16
     dd ?  ; PB_STYLE          equ +20
     dd 0  ; PB_MIN            equ +24
     dd 100; PB_MAX            equ +28
-    dd 0xAABBCC; PB_BACK_COLOR     equ +32
-    dd 0x7887A6; PB_PROGRESS_COLOR equ +36
-    dd 0xFFFFFF; PB_FRAME_COLOR    equ +40
+    dd 0xffffff; PB_BACK_COLOR     equ +32
+    dd 0x00ff40; PB_PROGRESS_COLOR equ +36
+    dd 0x808080; PB_FRAME_COLOR    equ +40
 }
 pb pb
 
