@@ -8,9 +8,12 @@ TLIST_SZ = 325+16 ;=341. 16 is x-size of scroll bar
 TLIST1_X = 50
 TLIST2_X = 409
 BT_SZ_X  = 40
-SYS_COL  = 0xe6e6e6
-BT_COL   = 0xcccccc
-STR_COL  = 0x595959 ;0x000000
+
+SYS_COL  = 0xaabbcc ;0xe6e6e6
+BT_COL   = 0x7887a6 ;0xcccccc
+STR_COL  = 0xffffff ;0x595959 ;0x000000
+TL_BG_COL = 0x8080ff ;0xffffff
+EDITBOX_BG_COL = 0xe0e4eb ;0xffffff
 
 ; TODO: automatic resizing of GUI elements on window resizing
 
@@ -73,12 +76,12 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall dword[tl_data_init], tree1
         stdcall dword[tl_data_init], tree2
 
-        load_image_file 'tl_sys_16_w.png', icon_tl_sys
+        load_image_file 'tl_sys_16.png', icon_tl_sys
         ; If the image does not appear, it will be icon_tl_sys
         m2m     dword[tree1.data_img_sys], dword[icon_tl_sys]
         m2m     dword[tree2.data_img_sys], dword[icon_tl_sys]
 
-        load_image_file 'tl_nod_16_w.png', icon_tl_nod
+        load_image_file 'tl_nod_16.png', icon_tl_nod
         m2m     dword[tree1.data_img], dword[icon_tl_nod]
         m2m     dword[tree2.data_img], dword[icon_tl_nod]
     
@@ -867,23 +870,23 @@ str_null        db 0
 ; tree list elements
 ;----------------------
 tree1 tree_list 64, 500, tl_list_box_mode, 16, 16, \
-    0xffffff, BT_COL, 0x000000, TLIST1_X, 105, TLIST_SZ-16, 185, 14, 4,\
+    TL_BG_COL, BT_COL, 0x000000, TLIST1_X, 105, TLIST_SZ-16, 185, 14, 4,\
     0, el_focus, wScr, fun_on_enter
 
 tree2 tree_list 64, 500, tl_list_box_mode, 16, 16, \
-    0xffffff, BT_COL, 0x000000, TLIST2_X, 105, TLIST_SZ-16, 185, 14, 4, \
+    TL_BG_COL, BT_COL, 0x000000, TLIST2_X, 105, TLIST_SZ-16, 185, 14, 4, \
     0, el_focus, wScr2, fun_on_enter2
 
 ; editbox for mkd
-edit_mkd edit_box TLIST_SZ-45, TLIST2_X, 82, 0xffffff, 0x6a9480, 0, \
+edit_mkd edit_box TLIST_SZ-45, TLIST2_X, 82, EDITBOX_BG_COL, 0x6a9480, 0, \
     0xAABBCC, 0, 99, new_dir_buf, mouse_dd, 0
 
 ; editbox for default volume
-edit_volume edit_box TLIST_SZ-60, TLIST1_X, 105-20, 0xffffff, 0x6a9480, 0, \
+edit_volume edit_box TLIST_SZ-60, TLIST1_X, 105-20, EDITBOX_BG_COL, 0x6a9480, 0, \
     0xAABBCC, 0, 99, root_dir, mouse_dd, 0
 
 ; editbox for search
-edit_search edit_box TLIST_SZ-60, TLIST2_X, 25, 0xffffff, 0x6a9480, 0, \
+edit_search edit_box TLIST_SZ-60, TLIST2_X, 25, EDITBOX_BG_COL, 0x6a9480, 0, \
     0xAABBCC, 0, 99, filter,mouse_dd, 0
  
 ; A subsidiary structure for scrolling
@@ -979,11 +982,11 @@ tedit0:
     .count_key_words   dd 0 ;+94
     .color_cursor      dd SYS_COL  ;+98
     .color_wnd_capt    dd BT_COL   ;+102
-    .color_wnd_work    dd 0xffffff ;+106
-    .color_wnd_bord    dd 0x737373 ;+110
+    .color_wnd_work    dd 0x0 ;0xffffff ;+106
+    .color_wnd_bord    dd 0xffffff ;0x737373 ;+110
     .color_select      dd 0x0000ff ;+114
     .color_cur_text    dd 0xffff00 ;+118
-    .color_wnd_text    dd 0x000000 ;+122
+    .color_wnd_text    dd 0xffffff ;0x000000 ;+122
     .syntax_file       dd 0 ;+126
     .syntax_file_size  dd 500 ;+130
     .text_colors       dd 0 ;+134
@@ -1082,7 +1085,7 @@ struc pb
     dd ?  ; PB_STYLE          equ +20
     dd 0  ; PB_MIN            equ +24
     dd 100; PB_MAX            equ +28
-    dd 0xffffff; PB_BACK_COLOR     equ +32
+    dd EDITBOX_BG_COL ;0xffffff; PB_BACK_COLOR     equ +32
     dd 0x00ff40; PB_PROGRESS_COLOR equ +36
     dd 0x808080; PB_FRAME_COLOR    equ +40
 }

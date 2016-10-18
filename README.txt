@@ -24,6 +24,8 @@ itself
 
 4) Text in console and log file is not properly formatted
 
+5) On entering wrong username/password, the login window is presented again but
+does not display any error
 
 Future improvements -
 
