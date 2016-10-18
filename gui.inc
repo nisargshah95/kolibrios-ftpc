@@ -1,8 +1,8 @@
 @use_library_mem mem.Alloc, mem.Free, mem.ReAlloc, dll.Load
- 
-fn_icon1 db 'tl_sys_16.bmp', 0
-fn_icon2 db 'tl_nod_16.bmp', 0
-bmp_icon dd 0
+
+
+icon_tl_sys dd 0
+icon_tl_nod dd 0
 
 TLIST_SZ = 325+16 ;=341. 16 is x-size of scroll bar
 TLIST1_X = 50
@@ -73,42 +73,15 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall dword[tl_data_init], tree1
         stdcall dword[tl_data_init], tree2
 
-        ; read *.bmp file system icons
-        copy_path fn_icon1,path,filestruct.name, 0
-     
-        mov     ecx, 3*256*13
-        stdcall mem.Alloc, ecx
-        mov     [bmp_icon], eax
-     
-        mov     [filestruct.ptr], eax
-        mov     [filestruct.subfn], 0
-        mov     [filestruct.offset], 54
-        mov     [filestruct.size], ecx
-        mcall   70, filestruct
-        cmp     ebx, 0
-        jl      @f
-        m2m     dword[tree1.data_img_sys], dword[bmp_icon]
-        m2m     dword[tree2.data_img_sys], dword[bmp_icon]
+        load_image_file 'tl_sys_16_w.png', icon_tl_sys
+        ; If the image does not appear, it will be icon_tl_sys
+        m2m     dword[tree1.data_img_sys], dword[icon_tl_sys]
+        m2m     dword[tree2.data_img_sys], dword[icon_tl_sys]
 
-      @@:
-        ; read * .bmp file with the icon of nodes
-        copy_path fn_icon2, path, filestruct.name, 0
-     
-        mov     ecx, 3*256*13
-        stdcall mem.Alloc, ecx
-        mov     [bmp_icon], eax
-     
-        mov     [filestruct.ptr], eax
-        ;mov    [filestruct.subfn], 0
-        ;mov    [filestruct.offset], 54
-        mov     [filestruct.size], ecx
-        mcall   70, filestruct
-        cmp     ebx, 0
-        jl      @f
-        m2m     dword[tree1.data_img], dword[bmp_icon]
-        m2m     dword[tree2.data_img], dword[bmp_icon]
+        load_image_file 'tl_nod_16_w.png', icon_tl_nod
+        m2m     dword[tree1.data_img], dword[icon_tl_nod]
+        m2m     dword[tree2.data_img], dword[icon_tl_nod]
     
-      @@:
         mcall   67, 35, 20, 830, 555 ; resize to main gui window's coordinates
         call    .draw
         ; create initial tree list for root_dir
@@ -179,6 +152,8 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   8, <TLIST2_X+TLIST_SZ-55,55>, <20,25>, 5, BT_COL
         ; string "Search"
         mcall   4, <TLIST2_X+TLIST_SZ-55+5,20+5>, 0xb0000000+STR_COL, str_search
+        ; ; search icon
+        ; mcall   7, search_icon, <16,16>, <TLIST2_X+TLIST_SZ-55,20+5>, 
 
         ; draw "LIST" button
         mcall   8, <TLIST2_X+TLIST_SZ-4*BT_SZ_X-15,BT_SZ_X>, <50,25>, 12, BT_COL
@@ -1117,7 +1092,12 @@ pb pb
 align 4
 @IMPORT_BOXLIB:
 
-library box_lib, 'box_lib.obj'
+library box_lib, 'box_lib.obj', libimg, 'libimg.obj'
+
+import  libimg, \
+        img_decode,         'img_decode', \
+        img_to_rgb2,        'img_to_rgb2', \
+        img_destroy,        'img_destroy'
 
 import  box_lib, \
         edit_box_draw,      'edit_box', \
@@ -1186,6 +1166,8 @@ conv_tabl   rb 128
 ed_buffer   rb 100
 tedit_buffer rb 1024
 el_focus    dd 0
+file_name   rb 4096
 ;-----------------------
 
 procinfo        process_information
+run_file_70     FileInfoBlock

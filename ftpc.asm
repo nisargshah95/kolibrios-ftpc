@@ -61,8 +61,10 @@ macro icall reg, addr, method, [arg]
 purge mov,add,sub
 
 include 'proc32.inc'
-include 'dll.inc'
+include 'load_img.inc'
+;include 'dll.inc' ; included in load_img.inc
 include 'network.inc'
+include 'KOSfuncs.inc'
 
 include 'box_lib.mac'
 include 'load_lib.mac'
