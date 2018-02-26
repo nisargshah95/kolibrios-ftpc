@@ -1,6 +1,6 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;;                                                                 ;;
-;; Copyright (C) KolibriOS team 2013-2014. All rights reserved.    ;;
+;; Copyright (C) KolibriOS team 2013-2018. All rights reserved.    ;;
 ;; Distributed under terms of the GNU General Public License       ;;
 ;;                                                                 ;;
 ;;  ftpc.asm - FTP client for KolibriOS                            ;;
@@ -41,7 +41,7 @@ use32
         dd      buf_cmd         ; parameters
         dd      path            ; path
 
-include 'macros.inc'
+include '../../macros.inc'
 macro ijmp reg, addr, method
 {   
     mov  reg, [addr]
@@ -60,14 +60,13 @@ macro icall reg, addr, method, [arg]
 
 purge mov,add,sub
 
-include 'proc32.inc'
-include 'load_img.inc'
-;include 'dll.inc' ; included in load_img.inc
-include 'network.inc'
-include 'KOSfuncs.inc'
-
-include 'box_lib.mac'
-include 'load_lib.mac'
+include '../../proc32.inc'
+include '../../network.inc'
+include '../../KOSfuncs.inc'
+include '../../load_img.inc'
+include '../../develop/libraries/libs-dev/libimg/libimg.inc'
+include '../../develop/libraries/box_lib/trunk/box_lib.mac'
+include '../../develop/libraries/box_lib/load_lib.mac'
 
 include 'console.inc'
 include 'gui.inc'
@@ -88,8 +87,8 @@ start: ;////////////////////////////////////////////////////////////////////////
 ;< none                                                                                           ;;
 ;;================================================================================================;;
 ; initialize heap for using dynamic blocks
-        mcall   68,11
-        test    eax,eax
+        mcall   68, 11
+        test    eax, eax
         je      exit2
         
 ; disable all events except network event

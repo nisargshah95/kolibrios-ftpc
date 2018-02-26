@@ -1,7 +1,6 @@
-SYS_COL  = 0xaabbcc ;0xe6e6e6
-BT_COL   = 0x7887a6 ;0xcccccc
-STR_COL  = 0xffffff ;0x595959 ;0x000000
-EDITBOX_BG_COL = 0xe0e4eb ;0xffffff
+SYS_COL  = 0xe6e6e6
+BT_COL   = 0xcccccc
+STR_COL  = 0x595959 ;0x000000
 
 ;;================================================================================================;;
 login_gui: ;//////////////////////////////////////////////////////////////////////////////////////;;
@@ -115,10 +114,10 @@ gui_str_null    db ' ',0
 str_error_addr  dd gui_str_null
 
 ; login window components
-edit_usr edit_box 300,75,5, EDITBOX_BG_COL,0x6f9480,0,0xAABBCC,0,99,param_user,mouse_dd,ed_focus
-edit_pass edit_box 300,75,25,EDITBOX_BG_COL,0x6a9480,0,0xAABBCC,0,99,param_password,mouse_dd,ed_pass
-edit_server edit_box 300,75,45,EDITBOX_BG_COL,0x6a9480,0,0xAABBCC,0,99,param_server_addr,mouse_dd,0
-edit_port edit_box 50,75,65,EDITBOX_BG_COL,0x6a9480,0,0xAABBCC,0,99,param_port,mouse_dd,ed_figure_only
-edit_path edit_box 300,75,85,EDITBOX_BG_COL,0x6a9480,0,0xAABBCC,0,99,param_path,mouse_dd,0
+edit_usr edit_box 300,75,5, 0xffffff,0x6f9480,0,0xAABBCC,0,99,param_user,mouse_dd,ed_focus
+edit_pass edit_box 300,75,25,0xffffff,0x6a9480,0,0xAABBCC,0,99,param_password,mouse_dd,ed_pass
+edit_server edit_box 300,75,45,0xffffff,0x6a9480,0,0xAABBCC,0,99,param_server_addr,mouse_dd,0
+edit_port edit_box 50,75,65,0xffffff,0x6a9480,0,0xAABBCC,0,99,param_port,mouse_dd,ed_figure_only
+edit_path edit_box 300,75,85,0xffffff,0x6a9480,0,0xAABBCC,0,99,param_path,mouse_dd,0
 
 mouse_dd rd 1

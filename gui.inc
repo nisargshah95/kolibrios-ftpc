@@ -1,6 +1,5 @@
 @use_library_mem mem.Alloc, mem.Free, mem.ReAlloc, dll.Load
-
-
+ 
 icon_tl_sys dd 0
 icon_tl_nod dd 0
 
@@ -8,12 +7,9 @@ TLIST_SZ = 325+16 ;=341. 16 is x-size of scroll bar
 TLIST1_X = 50
 TLIST2_X = 409
 BT_SZ_X  = 40
-
-SYS_COL  = 0xaabbcc ;0xe6e6e6
-BT_COL   = 0x7887a6 ;0xcccccc
-STR_COL  = 0xffffff ;0x595959 ;0x000000
-TL_BG_COL = 0x8080ff ;0xffffff
-EDITBOX_BG_COL = 0xe0e4eb ;0xffffff
+SYS_COL  = 0xe6e6e6
+BT_COL   = 0xcccccc
+STR_COL  = 0x595959 ;0x000000
 
 ; TODO: automatic resizing of GUI elements on window resizing
 
@@ -40,7 +36,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
     .init:
         ; load libraries
-        stdcall dll.Load, @IMPORT_BOXLIB
+        stdcall dll.Load, @IMPORT_GUI_LIBS
         test    eax, eax
         jnz     .exit
 
@@ -76,15 +72,34 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         stdcall dword[tl_data_init], tree1
         stdcall dword[tl_data_init], tree2
 
+        ; read icons
         load_image_file 'tl_sys_16.png', icon_tl_sys
-        ; If the image does not appear, it will be icon_tl_sys
+
+        mov     [filestruct.ptr], eax
+        mov     [filestruct.subfn], 0
+        mov     [filestruct.offset], 54
+        mov     [filestruct.size], ecx
+        mcall   70, filestruct
+        cmp     ebx, 0
+        jl      @f
         m2m     dword[tree1.data_img_sys], dword[icon_tl_sys]
         m2m     dword[tree2.data_img_sys], dword[icon_tl_sys]
 
+      @@:
+        ; read nodes icon file
         load_image_file 'tl_nod_16.png', icon_tl_nod
+
+        mov     [filestruct.ptr], eax
+        ;mov    [filestruct.subfn], 0
+        ;mov    [filestruct.offset], 54
+        mov     [filestruct.size], ecx
+        mcall   70, filestruct
+        cmp     ebx, 0
+        jl      @f
         m2m     dword[tree1.data_img], dword[icon_tl_nod]
         m2m     dword[tree2.data_img], dword[icon_tl_nod]
     
+      @@:
         mcall   67, 35, 20, 830, 555 ; resize to main gui window's coordinates
         call    .draw
         ; create initial tree list for root_dir
@@ -155,8 +170,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
         mcall   8, <TLIST2_X+TLIST_SZ-55,55>, <20,25>, 5, BT_COL
         ; string "Search"
         mcall   4, <TLIST2_X+TLIST_SZ-55+5,20+5>, 0xb0000000+STR_COL, str_search
-        ; ; search icon
-        ; mcall   7, search_icon, <16,16>, <TLIST2_X+TLIST_SZ-55,20+5>, 
 
         ; draw "LIST" button
         mcall   8, <TLIST2_X+TLIST_SZ-4*BT_SZ_X-15,BT_SZ_X>, <50,25>, 12, BT_COL
@@ -870,23 +883,23 @@ str_null        db 0
 ; tree list elements
 ;----------------------
 tree1 tree_list 64, 500, tl_list_box_mode, 16, 16, \
-    TL_BG_COL, BT_COL, 0x000000, TLIST1_X, 105, TLIST_SZ-16, 185, 14, 4,\
+    0xffffff, BT_COL, 0x000000, TLIST1_X, 105, TLIST_SZ-16, 185, 14, 4,\
     0, el_focus, wScr, fun_on_enter
 
 tree2 tree_list 64, 500, tl_list_box_mode, 16, 16, \
-    TL_BG_COL, BT_COL, 0x000000, TLIST2_X, 105, TLIST_SZ-16, 185, 14, 4, \
+    0xffffff, BT_COL, 0x000000, TLIST2_X, 105, TLIST_SZ-16, 185, 14, 4, \
     0, el_focus, wScr2, fun_on_enter2
 
 ; editbox for mkd
-edit_mkd edit_box TLIST_SZ-45, TLIST2_X, 82, EDITBOX_BG_COL, 0x6a9480, 0, \
+edit_mkd edit_box TLIST_SZ-45, TLIST2_X, 82, 0xffffff, 0x6a9480, 0, \
     0xAABBCC, 0, 99, new_dir_buf, mouse_dd, 0
 
 ; editbox for default volume
-edit_volume edit_box TLIST_SZ-60, TLIST1_X, 105-20, EDITBOX_BG_COL, 0x6a9480, 0, \
+edit_volume edit_box TLIST_SZ-60, TLIST1_X, 105-20, 0xffffff, 0x6a9480, 0, \
     0xAABBCC, 0, 99, root_dir, mouse_dd, 0
 
 ; editbox for search
-edit_search edit_box TLIST_SZ-60, TLIST2_X, 25, EDITBOX_BG_COL, 0x6a9480, 0, \
+edit_search edit_box TLIST_SZ-60, TLIST2_X, 25, 0xffffff, 0x6a9480, 0, \
     0xAABBCC, 0, 99, filter,mouse_dd, 0
  
 ; A subsidiary structure for scrolling
@@ -982,11 +995,11 @@ tedit0:
     .count_key_words   dd 0 ;+94
     .color_cursor      dd SYS_COL  ;+98
     .color_wnd_capt    dd BT_COL   ;+102
-    .color_wnd_work    dd 0x0 ;0xffffff ;+106
-    .color_wnd_bord    dd 0xffffff ;0x737373 ;+110
+    .color_wnd_work    dd 0xffffff ;+106
+    .color_wnd_bord    dd 0x737373 ;+110
     .color_select      dd 0x0000ff ;+114
     .color_cur_text    dd 0xffff00 ;+118
-    .color_wnd_text    dd 0xffffff ;0x000000 ;+122
+    .color_wnd_text    dd 0x000000 ;+122
     .syntax_file       dd 0 ;+126
     .syntax_file_size  dd 500 ;+130
     .text_colors       dd 0 ;+134
@@ -1085,7 +1098,7 @@ struc pb
     dd ?  ; PB_STYLE          equ +20
     dd 0  ; PB_MIN            equ +24
     dd 100; PB_MAX            equ +28
-    dd EDITBOX_BG_COL ;0xffffff; PB_BACK_COLOR     equ +32
+    dd 0xffffff; PB_BACK_COLOR     equ +32
     dd 0x00ff40; PB_PROGRESS_COLOR equ +36
     dd 0x808080; PB_FRAME_COLOR    equ +40
 }
@@ -1093,14 +1106,9 @@ pb pb
 
 
 align 4
-@IMPORT_BOXLIB:
+@IMPORT_GUI_LIBS:
 
 library box_lib, 'box_lib.obj', libimg, 'libimg.obj'
-
-import  libimg, \
-        img_decode,         'img_decode', \
-        img_to_rgb2,        'img_to_rgb2', \
-        img_destroy,        'img_destroy'
 
 import  box_lib, \
         edit_box_draw,      'edit_box', \
@@ -1153,6 +1161,31 @@ import  box_lib, \
         ted_text_colored,   'ted_text_colored', \
         progressbar_draw,   'progressbar_draw'
 
+import  libimg, \
+        lib_init1         , 'lib_init', \
+        img_is_img        , 'img_is_img', \;определяет по данным, может ли библиотека сделать из них изображени \
+        img_info          , 'img_info', \
+        img_from_file     , 'img_from_file', \
+        img_to_file       , 'img_to_file', \
+        img_from_rgb      , 'img_from_rgb', \
+        img_to_rgb        , 'img_to_rgb', \;преобразование изображения в данные RG \
+        img_to_rgb2       , 'img_to_rgb2', \
+        img_decode        , 'img_decode', \ ;автоматически определяет формат графических данны \
+        img_encode        , 'img_encode', \
+        img_create        , 'img_create', \
+        img_destroy       , 'img_destroy', \
+        img_destroy_layer , 'img_destroy_layer', \
+        img_count         , 'img_count', \
+        img_lock_bits     , 'img_lock_bits', \
+        img_unlock_bits   , 'img_unlock_bits', \
+        img_flip          , 'img_flip', \
+        img_flip_layer    , 'img_flip_layer', \
+        img_rotate        , 'img_rotate', \
+        img_rotate_layer  , 'img_rotate_layer', \
+        img_draw          , 'img_draw'
+
+
+run_file_70 FileInfoBlock ; required for libimg
 
 auto_list   db 1 ; to run LIST immediately after CWD
 filter      rb 512
@@ -1165,12 +1198,11 @@ node_entry  db '1111'
 node_entry2 db '1111'
             rb 512
 remote_list_buf rb 1024
+file_name   rb 4096 ; required for libimg
 conv_tabl   rb 128
 ed_buffer   rb 100
 tedit_buffer rb 1024
 el_focus    dd 0
-file_name   rb 4096
 ;-----------------------
 
 procinfo        process_information
-run_file_70     FileInfoBlock
