@@ -63,10 +63,6 @@ purge mov,add,sub
 include '../../proc32.inc'
 include '../../network.inc'
 include '../../KOSfuncs.inc'
-include '../../load_img.inc'
-include '../../develop/libraries/libs-dev/libimg/libimg.inc'
-include '../../develop/libraries/box_lib/trunk/box_lib.mac'
-include '../../develop/libraries/box_lib/load_lib.mac'
 
 include 'console.inc'
 include 'gui.inc'
@@ -753,8 +749,8 @@ exit2:
 
 
 ; data
-str_title       db 'FTP client',0
-str_welcome     db 'FTP client for KolibriOS v0.12',10
+str_title       db 'FTP client for KolibriOS',0
+str_welcome     db 'FTP client for KolibriOS v0.14',10
                 db 10,0
 str_srv_addr    db 'Please enter ftp server address.',10,0
 

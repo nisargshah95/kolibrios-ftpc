@@ -1,3 +1,8 @@
+include '../../load_img.inc'
+include '../../develop/libraries/libs-dev/libimg/libimg.inc'
+include '../../develop/libraries/box_lib/trunk/box_lib.mac'
+include '../../develop/libraries/box_lib/load_lib.mac'
+
 @use_library_mem mem.Alloc, mem.Free, mem.ReAlloc, dll.Load
  
 icon_tl_sys dd 0
@@ -144,7 +149,7 @@ gui: ;//////////////////////////////////////////////////////////////////////////
     .draw:
         mcall   12, 1
         ; main window
-        mcall   0, <35,830>, <20,555>, 0x34000000+SYS_COL, 0x805080DD, hed
+        mcall   0, <35,830>, <20,555>, 0x34000000+SYS_COL, 0x805080DD, str_title
 
         ;-------------------------
         ; textedit components
@@ -295,9 +300,6 @@ gui: ;//////////////////////////////////////////////////////////////////////////
 
         cmp     ah, 9
         je      remove_dir
-
-        cmp     ah, 10
-        je      cmd_abor
 
         cmp     ah, 11
         jne     @f
@@ -865,7 +867,7 @@ search: ;///////////////////////////////////////////////////////////////////////
 
 ;>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-hed             db 'FTP Client - KolibriOS',0
+;hed             db 'FTP Client for KolibriOS',0
 str_change      db 'Change',0
 str_disconnect  db 'Disconnect',0
 str_copy        db 'Copy',0
@@ -1036,7 +1038,7 @@ tedit0:
     .fun_save_err       dd 0 ;+238
     .increase_size dd 1000 ;+242
     .ptr_free_symb dd ? ;+246
-    .font_size     dd 16 shl 24 ; +250
+    .font_size     dd 16 shl 16 ; +250
 
 align 4
 scrol_w1:
